@@ -16,6 +16,7 @@
   "license": "ISC",
   "dependencies": {
     "@polkadot/api": "^10.12.1",
+    "blakejs": "^1.2.1",
     "typescript": "^5.4.2"
   },
   "devDependencies": {
