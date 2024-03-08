@@ -5,10 +5,10 @@ import * as crypto from 'crypto'
 import { connect } from '../src/network'
 import { getIssuer } from '../src/pallets/issuer/state'
 import { createIssuer } from '../src/pallets/issuer/extrinsic'
-import { createSchema } from '../src/pallets/credentials/extrinsic'
+import { attest, createSchema } from '../src/pallets/credentials/extrinsic'
 import { stringToBlakeTwo256Hash } from '../src/utils/hashing'
 import { SchemaObject, SchemaTypes } from '../src/pallets/credentials/types'
-import { getSchema } from '../src/pallets/credentials/state'
+import { getAttestation, getSchema } from '../src/pallets/credentials/state'
 
 const keyring = new Keyring({ type: 'sr25519' })
 let api: ApiPromise;
@@ -51,16 +51,16 @@ describe("Issuer Pallet Testing Module", () => {
 
 })
 
-
-
 describe("Credentials Pallet Testing Module", () => {
-
   const schema: SchemaObject = [{
     key: "Number of Elements",
     type: SchemaTypes.u32
   }, {
     key: "Number of Sub Items",
     type: SchemaTypes.u64
+  }, {
+    key: 'Are you a legit holder?',
+    type: SchemaTypes.char
   }]
 
   let schemaId: number
@@ -79,6 +79,19 @@ describe("Credentials Pallet Testing Module", () => {
     expect(fetchedSchema?.values()).toEqual(schema.values())
   })
 
+  it('attest credential on-chain', async () => {
+    await attest(api, alice, issuerHashId,
+      schemaId, bob.address, [10, 2.30, 't'])
+  })
+
+  it('fetch credential from chain', async () => {
+    const d = await getAttestation(api, bob.address,
+      schemaId)
+
+    expect(d).not.toBeUndefined();
+    expect(d!.length).toEqual(3);
+    expect(d![0]).toEqual(10);
+  })
 })
 
 afterAll(async () => {

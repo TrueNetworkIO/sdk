@@ -16,5 +16,18 @@ export function stringToBlakeTwo256Hash(inputString: string): string {
 }
 
 export const convertHexToString = (str: string): string => {
-  return Buffer.from(str.split('0x')[1], 'hex').toString('utf8')
+  return Buffer.from(str.slice(2), 'hex').toString('utf8')
+}
+
+export const convertBytesToSerialize = (input: string): number | string => {
+  // Use regular expression to check if the input string is a valid numerical value
+  const isValidNumber = /^-?\d+(\.\d+)?$/.test(input);
+
+  if (isValidNumber) {
+    // Use parseFloat to convert the string to a floating-point number
+    return parseInt(input);
+  } else {
+    // Return null if the input string is not a valid numerical value
+    return input;
+  }
 }
