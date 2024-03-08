@@ -2,6 +2,8 @@ import { ApiPromise } from '@polkadot/api'
 import { connect } from '../src/network'
 import { getFreeBalance } from '../src/utils/balances'
 
+import { getSchema } from '../src/pallets/credentials/state'
+
 let api: ApiPromise;
 
 beforeAll(async () => {

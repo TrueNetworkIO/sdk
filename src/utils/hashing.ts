@@ -14,3 +14,7 @@ export function stringToBlakeTwo256Hash(inputString: string): string {
 
   return hashHex;
 }
+
+export const convertHexToString = (str: string): string => {
+  return Buffer.from(str.split('0x')[1], 'hex').toString('utf8')
+}

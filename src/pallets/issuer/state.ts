@@ -13,6 +13,6 @@ export const getIssuer = async (api: ApiPromise, hashId: string) => {
 
   return {
     name,
-    controllers: d['controllers']
+    controllers: d['controllers'] as string[]
   }
 }
