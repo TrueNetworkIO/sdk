@@ -1,0 +1,65 @@
+import { ApiPromise } from "@polkadot/api";
+import { KeyringPair } from '@polkadot/keyring/types';
+
+import { ALGORITHM_PALLET_NAME } from "./state";
+
+export const saveAlgo = async (api: ApiPromise, account: KeyringPair, schemaIds: number[], code: number[]): Promise<number> => {
+
+  // compile code to wasm.
+  // convert wasm to bytes.
+  // upload bytes to the system. 
+
+  return await new Promise<number>((resolve, reject) => {
+    api.tx[ALGORITHM_PALLET_NAME]
+      .saveAlgo(schemaIds, code)
+      .signAndSend(account, (result) => {
+        let algorithmId: number = -1
+        result.events.forEach(({ event: { method, data } }) => {
+          if (method == 'AlgorithmAdded') {
+            const jsonData = data.toJSON() as any
+            if (jsonData) {
+              algorithmId = jsonData[0]
+            }
+          }
+          if (method == 'ExtrinsicFailed') {
+            reject('Transaction failed, error registering the algorithm.');
+          }
+        });
+
+        if (result.status.isFinalized) {
+          console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
+          if (algorithmId == -1) throw Error(`Error registering the schema, tx: ${result.status.asFinalized}`)
+          resolve(algorithmId);
+        }
+      });
+  });
+}
+
+
+export const runAlgo = async (api: ApiPromise, account: KeyringPair, userId: string, algorithmId: number): Promise<number> => {
+  return await new Promise<number>((resolve, reject) => {
+    api.tx[ALGORITHM_PALLET_NAME]
+      .runAlgoFor(userId, algorithmId)
+      .signAndSend(account, (result) => {
+
+        let reputationScore: number = -1
+
+        result.events.forEach(({ event: { method, data } }) => {
+          if (method == 'AlgoResult') {
+            const jsonData = data.toJSON() as any
+            if (jsonData) {
+              reputationScore = jsonData[0]
+            }
+          }
+          if (method == 'ExtrinsicFailed') {
+            reject(`Transaction failed, error attesting on-chain for the user. \ntx: ${result.status.hash}`);
+          }
+        });
+
+        if (result.status.isFinalized) {
+          console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
+          resolve(reputationScore)
+        }
+      });
+  });
+}
