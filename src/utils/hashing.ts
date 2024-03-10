@@ -15,6 +15,15 @@ export function stringToBlakeTwo256Hash(inputString: string): string {
   return hashHex;
 }
 
+export const toHexString = (input: string | number): string => {
+  if (typeof input === 'number') {
+    // Convert number to hexadecimal
+    return `0x${input.toString(16)}`;
+  } else {
+    return input;
+  }
+}
+
 export const convertHexToString = (str: string): string => {
   return Buffer.from(str.slice(2), 'hex').toString('utf8')
 }

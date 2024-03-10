@@ -1,10 +1,10 @@
 import { ApiPromise } from "@polkadot/api";
-import { CREDENTIALS_PALLET_NAME, getSchema } from "./state";
-import { stringToBlakeTwo256Hash } from "../../utils/hashing";
+import { CREDENTIALS_PALLET_NAME } from "./state";
 
 import { KeyringPair } from '@polkadot/keyring/types';
 import { SchemaObject, schemaObjectToRaw } from "./types";
 import { getIssuer } from "../issuer/state";
+import { toHexString } from "../../utils/hashing";
 
 export const createSchema = async (api: ApiPromise, account: KeyringPair, issuerId: string, schema: SchemaObject): Promise<number> => {
   // Check if issuer exists or not.
@@ -63,11 +63,13 @@ export const attest = async (api: ApiPromise, account: KeyringPair, issuerId: st
     throw Error("Cannot create schema, account is not a controller.")
   }
 
+  const values = attestation.map((i) => toHexString(i))
+
   return await new Promise<void>((resolve, reject) => {
     api.tx[CREDENTIALS_PALLET_NAME]
-      .attest(issuerHash, schemaId, attestedTo, attestation)
+      .attest(issuerHash, schemaId, attestedTo, values)
       .signAndSend(account, (result) => {
-        result.events.forEach(({ event: { method, data } }) => {
+        result.events.forEach(({ event: { method } }) => {
           if (method == 'AttestationCreated') {
             resolve()
           }

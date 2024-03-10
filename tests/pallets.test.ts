@@ -63,9 +63,6 @@ describe("Credentials Pallet Testing Module", () => {
   }, {
     key: "Number of Sub Items",
     type: SchemaTypes.u64
-  }, {
-    key: 'Are you a legit holder?',
-    type: SchemaTypes.char
   }]
 
   it('create schema on-chain', async () => {
@@ -84,7 +81,7 @@ describe("Credentials Pallet Testing Module", () => {
 
   it('attest credential on-chain', async () => {
     await attest(api, alice, issuerHashId,
-      schemaId, bob.address, [10, 2.30, 't'])
+      schemaId, bob.address, [10, 230])
   })
 
   it('fetch credential from chain', async () => {
