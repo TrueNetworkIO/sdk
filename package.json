@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com/@tusharojha"
+    "registry": "https://npm.pkg.github.com/@truenetworkio"
   },
   "files": [
     "/dist"
