@@ -2,14 +2,13 @@ import { ApiPromise } from "@polkadot/api";
 import { CREDENTIALS_PALLET_NAME } from "./state";
 
 import { KeyringPair } from '@polkadot/keyring/types';
-import { SchemaObject, schemaObjectToRaw } from "./types";
 import { getIssuer } from "../issuer/state";
-import { toHexString } from "../../utils/hashing";
+import { toLittleEndianHex } from "../../utils/hashing";
+import { Schema } from "../../schemas";
 
-export const createSchema = async (api: ApiPromise, account: KeyringPair, issuerId: string, schema: SchemaObject): Promise<number> => {
+export const createSchema = async (api: ApiPromise, account: KeyringPair, issuerHash: string, schema: Schema<any>): Promise<string> => {
   // Check if issuer exists or not.
   // Check if you are the owner, then skip the method.
-  const issuerHash = `0x${issuerId}`
   const issuer = await getIssuer(api, issuerHash)
 
   if (!issuer) {
@@ -21,16 +20,16 @@ export const createSchema = async (api: ApiPromise, account: KeyringPair, issuer
     throw Error("Cannot create schema, account is not a controller.")
   }
 
-  return await new Promise<number>((resolve, reject) => {
+  return await new Promise<string>((resolve, reject) => {
     api.tx[CREDENTIALS_PALLET_NAME]
-      .createSchema(issuerHash, schemaObjectToRaw(schema))
+      .createSchema(issuerHash, schema.getSchemaObject())
       .signAndSend(account, (result) => {
-        let schemaId: number = -1
+        let schemaHash: string | undefined
         result.events.forEach(({ event: { method, data } }) => {
           if (method == 'SchemaCreated') {
             const jsonData = data.toJSON() as any
             if (jsonData) {
-              schemaId = jsonData[0]
+              schemaHash = jsonData[0]
             }
           }
           if (method == 'ExtrinsicFailed') {
@@ -40,18 +39,17 @@ export const createSchema = async (api: ApiPromise, account: KeyringPair, issuer
 
         if (result.status.isFinalized) {
           console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
-          if (schemaId == -1) throw Error(`Error registering the schema, tx: ${result.status.asFinalized}`)
-          resolve(schemaId);
+          if (!schemaHash) throw Error(`Error registering the schema, tx: ${result.status.asFinalized}`)
+          resolve(schemaHash);
         }
       });
   });
 }
 
 
-export const attest = async (api: ApiPromise, account: KeyringPair, issuerId: string, schemaId: number, attestedTo: string, attestation: any[]): Promise<void> => {
+export const createAttestation = async (api: ApiPromise, account: KeyringPair, issuerHash: string, schema: Schema<any>, attestedTo: string, values: string[]): Promise<void> => {
   // Check if issuer exists or not.
   // Check if you are the owner, then skip the method.
-  const issuerHash = `0x${issuerId}`
   const issuer = await getIssuer(api, issuerHash)
 
   if (!issuer) {
@@ -60,14 +58,12 @@ export const attest = async (api: ApiPromise, account: KeyringPair, issuerId: st
 
   // Check if the user is a controller.
   if (!issuer.controllers.includes(account.address)) {
-    throw Error("Cannot create schema, account is not a controller.")
+    throw Error("Cannot create attestation, account is not a controller.")
   }
-
-  const values = attestation.map((i) => toHexString(i))
 
   return await new Promise<void>((resolve, reject) => {
     api.tx[CREDENTIALS_PALLET_NAME]
-      .attest(issuerHash, schemaId, attestedTo, values)
+      .attest(issuerHash, schema.getSchemaHash(), attestedTo, values)
       .signAndSend(account, (result) => {
         result.events.forEach(({ event: { method } }) => {
           if (method == 'AttestationCreated') {

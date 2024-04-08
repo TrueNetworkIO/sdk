@@ -3,7 +3,7 @@ import { KeyringPair } from '@polkadot/keyring/types';
 
 import { ALGORITHM_PALLET_NAME } from "./state";
 
-export const saveAlgo = async (api: ApiPromise, account: KeyringPair, schemaIds: number[], code: number[]): Promise<number> => {
+export const saveAlgo = async (api: ApiPromise, account: KeyringPair, schemaHashes: string[], code: number[]): Promise<number> => {
 
   // compile code to wasm.
   // convert wasm to bytes.
@@ -11,7 +11,7 @@ export const saveAlgo = async (api: ApiPromise, account: KeyringPair, schemaIds:
 
   return await new Promise<number>((resolve, reject) => {
     api.tx[ALGORITHM_PALLET_NAME]
-      .saveAlgo(schemaIds, code)
+      .saveAlgo(schemaHashes, code)
       .signAndSend(account, (result) => {
         let algorithmId: number = -1
         result.events.forEach(({ event: { method, data } }) => {

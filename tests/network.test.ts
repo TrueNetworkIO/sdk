@@ -2,8 +2,6 @@ import { ApiPromise } from '@polkadot/api'
 import { connect } from '../src/network'
 import { getFreeBalance } from '../src/utils/balances'
 
-import { getSchema } from '../src/pallets/credentials/state'
-
 let api: ApiPromise;
 
 beforeAll(async () => {
@@ -12,7 +10,7 @@ beforeAll(async () => {
 
 describe("Network Testing Module", () => {
   it("should estabilsh the connection correctly", async () => {
-    expect(await api.genesisHash.toHex()).toBe("0xaff80faaabe00947150e3557f6add2be5261fc6dcf0e2187e694f0fde63b141a");
+    expect(await api.genesisHash.toHex()).toBe("0xb74795a6d110900020d1eaf062a6fc156f1650e96c57d91a0739dadee420840f");
   })
 
   it('check user balance, greater than 0', async () => {

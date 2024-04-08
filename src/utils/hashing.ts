@@ -1,16 +1,24 @@
 import * as blake from 'blakejs';
 
+export function decodeBytesToNumber(bytes: Uint8Array): number {
+  let value = 0;
+  for (let i = 0; i < bytes.length; i++) {
+    value += bytes[i] * 256 ** i;
+  }
+  return value;
+}
+
 export function stringToBlakeTwo256Hash(inputString: string): string {
   // Convert string to Uint8Array
   const inputBytes = new TextEncoder().encode(inputString);
 
-  // Compute BlakeTwo256 hash
-  const hashBytes = blake.blake2b(inputBytes, undefined, 32);
+  return bytesToBlakeTwo256Hash(inputBytes);
+}
 
-  // Convert hash bytes to hexadecimal string
-  const hashHex = Array.from(hashBytes)
-    .map(byte => ('0' + (byte & 0xFF).toString(16)).slice(-2))
-    .join('');
+export function bytesToBlakeTwo256Hash(bytes: Uint8Array): string {
+  const hashBytes = blake.blake2b(bytes, undefined, 32);
+
+  const hashHex = Array.from(hashBytes).map(byte => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
 
   return hashHex;
 }
@@ -18,10 +26,25 @@ export function stringToBlakeTwo256Hash(inputString: string): string {
 export const toHexString = (input: string | number): string => {
   if (typeof input === 'number') {
     // Convert number to hexadecimal
-    return `0x${input.toString(16)}`;
+    return `0x0${input.toString(16)}`;
   } else {
     return input;
   }
+}
+export function numberToUint8Array(number: number): Uint8Array {
+  const buffer = new ArrayBuffer(1); // Assuming a 32-bit integer
+  const view = new DataView(buffer);
+  view.setUint8(0, (number)); // Little-endian byte order
+  return new Uint8Array(buffer);
+}
+
+export function toLittleEndianHex(num: any, byteLength: number) {
+  const hexString = num.toString(16).padStart(byteLength * 2, '0');
+  const littleEndianHex = [];
+  for (let i = 0; i < byteLength; i++) {
+    littleEndianHex.push(hexString.substr(i * 2, 2));
+  }
+  return `0x${littleEndianHex.reverse().join('')}`;
 }
 
 export const convertHexToString = (str: string): string => {

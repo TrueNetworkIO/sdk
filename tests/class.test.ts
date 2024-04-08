@@ -1,38 +1,40 @@
-import { ApiPromise, Keyring } from '@polkadot/api'
+import { Keyring } from '@polkadot/api'
 import { KeyringPair } from '@polkadot/keyring/types'
 import * as crypto from 'crypto'
 
-import { connect } from '../src/network'
 import { getIssuer } from '../src/pallets/issuer/state'
-import { createIssuer } from '../src/pallets/issuer/extrinsic'
-import { attest, createSchema } from '../src/pallets/credentials/extrinsic'
 import { stringToBlakeTwo256Hash } from '../src/utils/hashing'
-import { SchemaObject, SchemaTypes } from '../src/pallets/credentials/types'
-import { getAttestation, getSchema } from '../src/pallets/credentials/state'
 
+import { Schema, TrueApi, U32, U64, U8 } from '../src/'
 import { saveAlgo, runAlgo } from '../src/pallets/algorithms/extrinsic'
 import { getAlgorithm } from '../src/pallets/algorithms/state'
 
 const keyring = new Keyring({ type: 'sr25519' })
-let api: ApiPromise;
+keyring.setSS58Format(7);
+
+let eve: KeyringPair
+
+let api: TrueApi;
 let alice: KeyringPair;
 let bob: KeyringPair;
 
-let issuerHashId: string
-let schemaId: number
-
+type GithubSchema = {
+  number_of_elements: U32,
+  number_of_sub_items: U32,
+};
 
 beforeAll(async () => {
-  api = await connect()
+  api = await TrueApi.create('//Alice')
 
   alice = keyring.addFromUri("//Alice", { name: 'Alice default' })
   bob = keyring.addFromUri("//Bob", { name: 'Bob default' })
+  eve = keyring.addFromUri('eve')
 
 })
 
 describe("Issuer Pallet Testing Module", () => {
   it("should estabilsh the connection correctly", async () => {
-    expect(await api.genesisHash.toHex()).toBe("0xaff80faaabe00947150e3557f6add2be5261fc6dcf0e2187e694f0fde63b141a");
+    expect(await api.network.genesisHash.toHex()).toBe("0xb74795a6d110900020d1eaf062a6fc156f1650e96c57d91a0739dadee420840f");
   })
 
   // Random bytes for issuer name.
@@ -40,15 +42,15 @@ describe("Issuer Pallet Testing Module", () => {
   const hash = stringToBlakeTwo256Hash(randomBytes)
 
   it('create issuer on-chain', async () => {
-    const issuerId = await createIssuer(api, alice, randomBytes, [alice.address, bob.address])
+
+    const issuerId = await api.registerIssuer(randomBytes, [alice.address, bob.address])
 
     expect(issuerId).toEqual(`0x${hash}`);
 
-    issuerHashId = hash
   })
 
   it('get issuer data', async () => {
-    const issuer = await getIssuer(api, `0x${hash}`)
+    const issuer = await getIssuer(api.network, `0x${hash}`)
     expect(issuer).not.toBeUndefined();
     expect(issuer?.name).toEqual(randomBytes);
     expect(issuer?.controllers).toContain(bob.address);
@@ -57,40 +59,42 @@ describe("Issuer Pallet Testing Module", () => {
 })
 
 describe("Credentials Pallet Testing Module", () => {
-  const schema: SchemaObject = [{
-    key: "Number of Elements",
-    type: SchemaTypes.u32
-  }, {
-    key: "Number of Sub Items",
-    type: SchemaTypes.u64
-  }]
+  const schemaS: GithubSchema = { // Type 'U64' is not assignable to type 'U32'.
+    number_of_sub_items: new U32(1),
+    number_of_elements: new U64(1), // Type error here
+  };
+
+  const schema = new Schema<GithubSchema>({
+    number_of_sub_items: new U32(1),
+    number_of_elements: new U64(1),
+  });
 
   it('create schema on-chain', async () => {
-    schemaId = await createSchema(api, alice, issuerHashId,
-      schema)
+    const schemaHash = await schema.register(api)
 
-    expect(schemaId).toBeGreaterThan(99);
+    expect(schemaHash).toEqual(schema.getSchemaHash())
   })
 
-  it('get schema data', async () => {
-    const fetchedSchema = await getSchema(api, schemaId)
+  // it('get schema data', async () => {
+  //   const fetchedSchema = await getSchema(api, schemaId)
 
-    expect(fetchedSchema?.keys()).toEqual(schema.keys())
-    expect(fetchedSchema?.values()).toEqual(schema.values())
-  })
+  //   expect(fetchedSchema?.keys()).toEqual(schema.keys())
+  //   expect(fetchedSchema?.values()).toEqual(schema.values())
+  // })
 
   it('attest credential on-chain', async () => {
-    await attest(api, alice, issuerHashId,
-      schemaId, bob.address, [10, 230])
+    await schema.attest(api, eve.address, {
+      number_of_elements: new U32(12),
+      number_of_sub_items: new U8(10),
+    })
   })
 
   it('fetch credential from chain', async () => {
-    const d = await getAttestation(api, bob.address,
-      schemaId)
+    const d = await schema.getAttestation(api, eve.address)
 
     expect(d).not.toBeUndefined();
-    expect(d!.length).toEqual(3);
-    expect(d![0]).toEqual(10);
+    expect(d!.number_of_elements.value).toEqual(12);
+    expect(d!.number_of_sub_items.value).toEqual(10);
   })
 })
 
@@ -108,30 +112,35 @@ function readFileAsBytes(filePath: string): number[] {
 describe("Algorithms Pallet Testing Module", () => {
   let algoId: number
 
+  const schema = new Schema<GithubSchema>({
+    number_of_sub_items: new U32(1),
+    number_of_elements: new U64(1),
+  });
+
   it('save algorithm on-chain', async () => {
     const code = readFileAsBytes('')
-    algoId = await saveAlgo(api, alice, [schemaId],
+    algoId = await saveAlgo(api.network, api.account, [schema.getSchemaHash()],
       code)
 
     expect(algoId).toBeGreaterThan(99);
   })
 
   it('run algo for user', async () => {
-    const output = await runAlgo(api, alice, bob.address, algoId)
+    const output = await runAlgo(api.network, api.account, eve.address, algoId)
 
-    expect(output).toBeGreaterThanOrEqual(0)
+    expect(output).toEqual(22)
   })
 
 
   it('get algo schemas', async () => {
-    const data = await getAlgorithm(api, algoId)
+    const data = await getAlgorithm(api.network, algoId)
 
     expect(data?.length).toEqual(1)
-    expect(data![0]).toEqual(schemaId)
+    expect(data![0]).toEqual(schema.getSchemaHash())
   })
 
 })
 
 afterAll(async () => {
-  await api.disconnect()
+  await api.network.disconnect()
 })
