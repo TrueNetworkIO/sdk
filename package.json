@@ -1,11 +1,11 @@
 {
-  "name": "@truenetworkio/sdk",
+  "name": "@truenetwork/sdk",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com/@truenetworkio"
+    "@truenetworkio:registry": "https://npm.pkg.github.com/@truenetworkio"
   },
   "files": [
     "/dist"
