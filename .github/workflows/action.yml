@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: 18.18.0
           registry-url: https://npm.pkg.github.com/
-          scope: '@tusharojha'
+          scope: '@truenetworkio'
       - run: npm install
       - run: npm run build
       - run: npm publish

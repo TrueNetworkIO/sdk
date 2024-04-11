@@ -59,11 +59,6 @@ describe("Issuer Pallet Testing Module", () => {
 })
 
 describe("Credentials Pallet Testing Module", () => {
-  const schemaS: GithubSchema = { // Type 'U64' is not assignable to type 'U32'.
-    number_of_sub_items: new U32(1),
-    number_of_elements: new U64(1), // Type error here
-  };
-
   const schema = new Schema<GithubSchema>({
     number_of_sub_items: new U32(1),
     number_of_elements: new U64(1),

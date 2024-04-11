@@ -2,6 +2,7 @@ import { ApiPromise, Keyring } from "@polkadot/api"
 import { KeyringPair } from '@polkadot/keyring/types'
 import { connect } from "./network";
 import { createIssuer } from "./pallets/issuer/extrinsic";
+import { checkAndConvertAddresses } from "./utils/address";
 
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
@@ -34,7 +35,9 @@ export class TrueApi {
 
   // Abstracted extrinsics of the pallets.
   public async registerIssuer(name: string, controllers: string[]) {
-    const issuer = await createIssuer(this.network, this.account, name, controllers)
+    const trueAddresses = checkAndConvertAddresses(controllers)
+
+    const issuer = await createIssuer(this.network, this.account, name, trueAddresses)
     this.issuerHash = issuer;
     return issuer;
   }

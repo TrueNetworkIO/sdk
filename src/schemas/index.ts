@@ -2,7 +2,7 @@ import { bytesToBlakeTwo256Hash, decodeBytesToNumber, numberToUint8Array, toLitt
 import { checkIfSchemaExist, getAttestation } from "../pallets/credentials/state";
 import { createAttestation, createSchema } from "../pallets/credentials/extrinsic";
 import { TrueApi } from "..";
-import { blake2bHex } from "blakejs";
+import { toTrueNetworkAddress } from "../utils/address";
 
 abstract class SchemaType<T> {
   abstract sizeInBytes: number;
@@ -270,6 +270,6 @@ export class Schema<T extends Record<string, SchemaType<any>>> {
     // Serialize the attestation values. 
     const values = this.getSortedEntries(attestation).map(i => toLittleEndianHex(i[1].value, i[1].sizeInBytes));
 
-    await createAttestation(api.network, api.account, api.issuerHash, this, user, values);
+    await createAttestation(api.network, api.account, api.issuerHash, this, toTrueNetworkAddress(user), values);
   }
 }
