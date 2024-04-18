@@ -170,6 +170,19 @@ export class F64 extends SchemaType<number> {
   }
 }
 
+export class Hash extends SchemaType<string> {
+  sizeInBytes: number = 32;
+  id = 11;
+
+  isValid(v: string): boolean {
+    return v.length > 0;
+  }
+
+  public getInstance(v: string) {
+    return new Hash(v);
+  }
+}
+
 export type SchemaObject = {
   [key: string]: SchemaType<any>
 }

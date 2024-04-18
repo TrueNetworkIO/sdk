@@ -1,6 +1,6 @@
 import { ApiPromise, Keyring } from "@polkadot/api"
 import { KeyringPair } from '@polkadot/keyring/types'
-import { connect } from "./network";
+import { NetworkConfig, connect } from "./network";
 import { createIssuer } from "./pallets/issuer/extrinsic";
 import { checkAndConvertAddresses } from "./utils/address";
 
@@ -27,8 +27,8 @@ export class TrueApi {
     await this.network.disconnect();
   }
 
-  static async create(accountKey: string): Promise<TrueApi> {
-    const api = await connect();
+  static async create(accountKey: string, nodeUrl?: NetworkConfig): Promise<TrueApi> {
+    const api = await connect(nodeUrl);
 
     return new TrueApi(api, accountKey);
   }
