@@ -1,6 +1,6 @@
 import { bytesToBlakeTwo256Hash, decodeBytesToNumber, numberToUint8Array, toLittleEndianHex } from "../utils/hashing";
 import { checkIfSchemaExist, getAttestation } from "../pallets/credentials/state";
-import { createAttestation, createSchema } from "../pallets/credentials/extrinsic";
+import { createAttestation, createAttestationTx, createSchema, createSchemaTx } from "../pallets/credentials/extrinsic";
 import { TrueApi } from "..";
 import { toTrueNetworkAddress } from "../utils/address";
 
@@ -181,6 +181,16 @@ export class Hash extends SchemaType<string> {
   public getInstance(v: string) {
     return new Hash(v);
   }
+
+  public static createFromObject(d: any): Hash {
+    if (typeof d !== 'object') throw Error('Passed item is not an object in Hash.')
+
+    const textEncoder = new TextEncoder();
+
+    const bytes = textEncoder.encode(d)
+
+    return new Hash(bytesToBlakeTwo256Hash(bytes));
+  }
 }
 
 export type SchemaObject = {
@@ -275,13 +285,31 @@ export class Schema<T extends Record<string, SchemaType<any>>> {
     // Check if issuer hash exists in the api.
     if (!api.issuerHash) throw Error("issuerHash property does not exist on TrueApi, try registering an issuer.")
 
-    // Check if schema exists, if not register.
-    if (!await this.ifExistAlready(api)) {
-      await this.register(api);
-    }
-
     // Serialize the attestation values. 
     const values = this.getSortedEntries(attestation).map(i => toLittleEndianHex(i[1].value, i[1].sizeInBytes));
+
+    // Check if schema exists, if not register & attest.
+    if (!await this.ifExistAlready(api)) {
+      // do a combined transaction of register & attest on-chain.
+      const schemaTx = await createSchemaTx(api.network, api.account, api.issuerHash, this)
+
+      const attestationTx = await createAttestationTx(api.network, api.account, api.issuerHash, this, toTrueNetworkAddress(user), values);
+
+      return await api.network.tx.utility.batch([schemaTx, attestationTx]).signAndSend(api.account, ({ status, events }) => {
+        events.forEach(({ event: { method } }) => {
+          if (method == 'AttestationCreated') {
+            return status.asFinalized.toString();
+          }
+          if (method == 'ExtrinsicFailed') {
+            throw Error(`Transaction failed, error attesting on-chain for the user. \ntx: ${status.hash}`);
+          }
+        });
+
+        if (status.isFinalized) {
+          console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
+        }
+      });
+    }
 
     await createAttestation(api.network, api.account, api.issuerHash, this, toTrueNetworkAddress(user), values);
   }

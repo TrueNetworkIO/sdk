@@ -3,8 +3,25 @@ import { CREDENTIALS_PALLET_NAME } from "./state";
 
 import { KeyringPair } from '@polkadot/keyring/types';
 import { getIssuer } from "../issuer/state";
-import { toLittleEndianHex } from "../../utils/hashing";
 import { Schema } from "../../schemas";
+
+export const createSchemaTx = async (api: ApiPromise, account: KeyringPair, issuerHash: string, schema: Schema<any>) => {
+  // Check if issuer exists or not.
+  // Check if you are the owner, then skip the method.
+  const issuer = await getIssuer(api, issuerHash)
+
+  if (!issuer) {
+    throw Error("Issuer does not exists.")
+  }
+
+  // Check if the user is a controller.
+  if (!issuer.controllers.includes(account.address)) {
+    throw Error("Cannot create schema, account is not a controller.")
+  }
+
+  return api.tx[CREDENTIALS_PALLET_NAME]
+    .createSchema(issuerHash, schema.getSchemaObject())
+}
 
 export const createSchema = async (api: ApiPromise, account: KeyringPair, issuerHash: string, schema: Schema<any>): Promise<string> => {
   // Check if issuer exists or not.
@@ -47,7 +64,7 @@ export const createSchema = async (api: ApiPromise, account: KeyringPair, issuer
 }
 
 
-export const createAttestation = async (api: ApiPromise, account: KeyringPair, issuerHash: string, schema: Schema<any>, attestedTo: string, values: string[]): Promise<void> => {
+export const createAttestationTx = async (api: ApiPromise, account: KeyringPair, issuerHash: string, schema: Schema<any>, attestedTo: string, values: string[]) => {
   // Check if issuer exists or not.
   // Check if you are the owner, then skip the method.
   const issuer = await getIssuer(api, issuerHash)
@@ -61,13 +78,31 @@ export const createAttestation = async (api: ApiPromise, account: KeyringPair, i
     throw Error("Cannot create attestation, account is not a controller.")
   }
 
-  return await new Promise<void>((resolve, reject) => {
+  return api.tx[CREDENTIALS_PALLET_NAME]
+    .attest(issuerHash, schema.getSchemaHash(), attestedTo, values)
+}
+
+export const createAttestation = async (api: ApiPromise, account: KeyringPair, issuerHash: string, schema: Schema<any>, attestedTo: string, values: string[]): Promise<string> => {
+  // Check if issuer exists or not.
+  // Check if you are the owner, then skip the method.
+  const issuer = await getIssuer(api, issuerHash)
+
+  if (!issuer) {
+    throw Error("Issuer does not exists.")
+  }
+
+  // Check if the user is a controller.
+  if (!issuer.controllers.includes(account.address)) {
+    throw Error("Cannot create attestation, account is not a controller.")
+  }
+
+  return await new Promise<string>((resolve, reject) => {
     api.tx[CREDENTIALS_PALLET_NAME]
       .attest(issuerHash, schema.getSchemaHash(), attestedTo, values)
       .signAndSend(account, (result) => {
         result.events.forEach(({ event: { method } }) => {
           if (method == 'AttestationCreated') {
-            resolve()
+            resolve(result.status.asFinalized.toString())
           }
           if (method == 'ExtrinsicFailed') {
             reject(`Transaction failed, error attesting on-chain for the user. \ntx: ${result.status.hash}`);
