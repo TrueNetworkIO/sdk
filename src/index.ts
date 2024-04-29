@@ -33,6 +33,10 @@ export class TrueApi {
     return new TrueApi(api, accountKey);
   }
 
+  public async setIssuer(hash: string) {
+    this.issuerHash = hash;
+  }
+
   // Abstracted extrinsics of the pallets.
   public async registerIssuer(name: string, controllers: string[]) {
     const trueAddresses = checkAndConvertAddresses(controllers)
@@ -45,3 +49,5 @@ export class TrueApi {
 }
 
 export * from './schemas'
+export * from './utils'
+export * from './network'

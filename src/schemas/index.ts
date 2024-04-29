@@ -295,11 +295,10 @@ export class Schema<T extends Record<string, SchemaType<any>>> {
 
       const attestationTx = await createAttestationTx(api.network, api.account, api.issuerHash, this, toTrueNetworkAddress(user), values);
 
-      return await api.network.tx.utility.batch([schemaTx, attestationTx]).signAndSend(api.account, ({ status, events }) => {
+      let txHash: string | undefined
+
+      await api.network.tx.utility.batch([schemaTx, attestationTx]).signAndSend(api.account, ({ status, events }) => {
         events.forEach(({ event: { method } }) => {
-          if (method == 'AttestationCreated') {
-            return status.asFinalized.toString();
-          }
           if (method == 'ExtrinsicFailed') {
             throw Error(`Transaction failed, error attesting on-chain for the user. \ntx: ${status.hash}`);
           }
@@ -307,8 +306,11 @@ export class Schema<T extends Record<string, SchemaType<any>>> {
 
         if (status.isFinalized) {
           console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
+          txHash = `${status.asFinalized}`;
         }
       });
+
+      return txHash;
     }
 
     await createAttestation(api.network, api.account, api.issuerHash, this, toTrueNetworkAddress(user), values);
