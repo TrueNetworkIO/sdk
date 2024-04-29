@@ -1,7 +1,7 @@
 {
   "name": "@truenetworkio/sdk",
-  "version": "0.0.4",
-  "description": "",
+  "version": "0.0.5",
+  "description": "True Network SDK is the abstracted interface for interacting with True Network nodes.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "repository": {
