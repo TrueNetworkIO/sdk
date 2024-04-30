@@ -57,7 +57,7 @@ export const createSchema = async (api: ApiPromise, account: KeyringPair, issuer
         if (result.status.isFinalized) {
           console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
           if (!schemaHash) throw Error(`Error registering the schema, tx: ${result.status.asFinalized}`)
-          resolve(schemaHash);
+          resolve(`${result.status.asFinalized}`);
         }
       });
   });
@@ -102,7 +102,7 @@ export const createAttestation = async (api: ApiPromise, account: KeyringPair, i
       .signAndSend(account, (result) => {
         result.events.forEach(({ event: { method } }) => {
           if (method == 'AttestationCreated') {
-            resolve(result.status.asFinalized.toString())
+            console.log('Attestation Created: InBlock')
           }
           if (method == 'ExtrinsicFailed') {
             reject(`Transaction failed, error attesting on-chain for the user. \ntx: ${result.status.hash}`);
@@ -111,6 +111,7 @@ export const createAttestation = async (api: ApiPromise, account: KeyringPair, i
 
         if (result.status.isFinalized) {
           console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
+          resolve(`${result.status.asFinalized}`)
         }
       });
   });

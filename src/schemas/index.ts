@@ -295,24 +295,23 @@ export class Schema<T extends Record<string, SchemaType<any>>> {
 
       const attestationTx = await createAttestationTx(api.network, api.account, api.issuerHash, this, toTrueNetworkAddress(user), values);
 
-      let txHash: string | undefined
+      return new Promise<string | undefined>(async (resolve, _) => {
+        await api.network.tx.utility.batch([schemaTx, attestationTx]).signAndSend(api.account, ({ status, events }) => {
+          events.forEach(({ event: { method } }) => {
+            if (method == 'ExtrinsicFailed') {
+              throw Error(`Transaction failed, error attesting on-chain for the user. \ntx: ${status.hash}`);
+            }
+          });
 
-      await api.network.tx.utility.batch([schemaTx, attestationTx]).signAndSend(api.account, ({ status, events }) => {
-        events.forEach(({ event: { method } }) => {
-          if (method == 'ExtrinsicFailed') {
-            throw Error(`Transaction failed, error attesting on-chain for the user. \ntx: ${status.hash}`);
+          if (status.isFinalized) {
+            console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
+            resolve(`${status.asFinalized}`);
+
           }
         });
-
-        if (status.isFinalized) {
-          console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
-          txHash = `${status.asFinalized}`;
-        }
       });
-
-      return txHash;
     }
 
-    await createAttestation(api.network, api.account, api.issuerHash, this, toTrueNetworkAddress(user), values);
+    return await createAttestation(api.network, api.account, api.issuerHash, this, toTrueNetworkAddress(user), values);
   }
 }
