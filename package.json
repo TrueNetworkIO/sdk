@@ -1,11 +1,11 @@
 {
   "name": "@truenetworkio/sdk",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "True Network SDK is the abstracted interface for interacting with True Network nodes.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "repository": {
-    "url": "https://github.com/truenetworkio/sdk"
+    "url": "git+https://github.com/truenetworkio/sdk.git"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/@truenetworkio"
@@ -30,5 +30,12 @@
     "@types/jest": "^29.5.12",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.2"
+  },
+  "bugs": {
+    "url": "https://github.com/truenetworkio/sdk/issues"
+  },
+  "homepage": "https://github.com/truenetworkio/sdk#readme",
+  "directories": {
+    "test": "tests"
   }
 }
