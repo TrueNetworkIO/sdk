@@ -4,201 +4,170 @@ import { createAttestation, createAttestationTx, createSchema, createSchemaTx } 
 import { TrueApi } from "..";
 import { toTrueNetworkAddress } from "../utils/address";
 
-abstract class SchemaType<T> {
+type PrimitiveType = string | number | bigint;
+
+abstract class SchemaType<T extends PrimitiveType> {
   abstract sizeInBytes: number;
   abstract id: number;
 
-  value: T;
-
   abstract isValid(v: T): boolean;
+  abstract serialize(v: T): string; 
 
-  constructor(v: T) {
-    if (!this.isValid(v)) throw Error("Invalid value format for the schema type.");
-
-    this.value = v;
-  }
-
-  abstract getInstance(v: T): any;
+  abstract deserialize(v: string): T;
 }
 
-export class Char extends SchemaType<string> {
-  sizeInBytes: number = 1;
+class CharType extends SchemaType<string> {
+  sizeInBytes = 1;
   id = 0;
-
-  isValid(v: string): boolean {
-    return v.length == 1;
-  }
-
-  public getInstance(v: string) {
-    return new Char(v);
-  }
+  isValid(v: string): boolean { return v.length === 1; }
+  serialize(v: string): string { return toLittleEndianHex(v.charCodeAt(0), this.sizeInBytes); }
+  deserialize(v: string): string { return String.fromCharCode(parseInt(v, 16)); }
 }
 
-export class U8 extends SchemaType<number> {
-  sizeInBytes: number = 1;
+class U8Type extends SchemaType<number> {
+  sizeInBytes = 1;
   id = 1;
-
-  isValid(v: number): boolean {
-    return Number.isInteger(v) && v >= 0 && v <= 255;
-  }
-
-  public getInstance(v: number) {
-    return new U8(v);
-  }
+  isValid(v: number): boolean { return Number.isInteger(v) && v >= 0 && v <= 255; }
+  serialize(v: number): string { return toLittleEndianHex(v, this.sizeInBytes); }
+  deserialize(v: string): number { return parseInt(v, 16); }
 }
 
-export class I8 extends SchemaType<number> {
-  sizeInBytes: number = 1;
+class I8Type extends SchemaType<number> {
+  sizeInBytes = 1;
   id = 2;
-
-  isValid(v: number): boolean {
-    return Number.isInteger(v) && v >= -128 && v <= 127;
-  }
-
-  public getInstance(v: number) {
-    return new I8(v);
+  isValid(v: number): boolean { return Number.isInteger(v) && v >= -128 && v <= 127; }
+  serialize(v: number): string { return toLittleEndianHex(v & 0xFF, this.sizeInBytes); }
+  deserialize(v: string): number { 
+    let num = parseInt(v, 16);
+    return num > 127 ? num - 256 : num;
   }
 }
 
-export class U16 extends SchemaType<number> {
-  sizeInBytes: number = 2;
+class U16Type extends SchemaType<number> {
+  sizeInBytes = 2;
   id = 3;
-
-  isValid(v: number): boolean {
-    return Number.isInteger(v) && v >= 0 && v <= 65535;
-  }
-
-  public getInstance(v: number) {
-    return new U16(v);
-  }
+  isValid(v: number): boolean { return Number.isInteger(v) && v >= 0 && v <= 65535; }
+  serialize(v: number): string { return toLittleEndianHex(v, this.sizeInBytes); }
+  deserialize(v: string): number { return parseInt(v, 16); }
 }
 
-export class I16 extends SchemaType<number> {
-  sizeInBytes: number = 2;
+class I16Type extends SchemaType<number> {
+  sizeInBytes = 2;
   id = 4;
-
-  isValid(v: number): boolean {
-    return Number.isInteger(v) && v >= -32768 && v <= 32767;
-  }
-
-  public getInstance(v: number) {
-    return new I16(v);
+  isValid(v: number): boolean { return Number.isInteger(v) && v >= -32768 && v <= 32767; }
+  serialize(v: number): string { return toLittleEndianHex(v & 0xFFFF, this.sizeInBytes); }
+  deserialize(v: string): number { 
+    let num = parseInt(v, 16);
+    return num > 32767 ? num - 65536 : num;
   }
 }
 
-export class U32 extends SchemaType<number> {
-  sizeInBytes: number = 4;
+class U32Type extends SchemaType<number> {
+  sizeInBytes = 4;
   id = 5;
-
-  isValid(v: number): boolean {
-    return Number.isInteger(v) && v >= 0 && v <= 4294967295;
-  }
-
-  public getInstance(v: number) {
-    return new U32(v);
-  }
+  isValid(v: number): boolean { return Number.isInteger(v) && v >= 0 && v <= 4294967295; }
+  serialize(v: number): string { return toLittleEndianHex(v, this.sizeInBytes); }
+  deserialize(v: string): number { return parseInt(v, 16); }
 }
 
-export class I32 extends SchemaType<number> {
-  sizeInBytes: number = 4;
+class I32Type extends SchemaType<number> {
+  sizeInBytes = 4;
   id = 6;
-
-  isValid(v: number): boolean {
-    return Number.isInteger(v) && v >= -2147483648 && v <= 2147483647;
-  }
-
-  public getInstance(v: number) {
-    return new I32(v);
+  isValid(v: number): boolean { return Number.isInteger(v) && v >= -2147483648 && v <= 2147483647; }
+  serialize(v: number): string { return toLittleEndianHex(v >>> 0, this.sizeInBytes); }
+  deserialize(v: string): number { 
+    let num = parseInt(v, 16);
+    return num > 2147483647 ? num - 4294967296 : num;
   }
 }
 
-export class U64 extends SchemaType<number> {
-  sizeInBytes: number = 8;
+class U64Type extends SchemaType<bigint> {
+  sizeInBytes = 8;
   id = 7;
-
-  isValid(v: number): boolean {
-    // You may need a custom check for 64-bit unsigned integers
-    // as JavaScript doesn't natively support them beyond 53 bits
-    return Number.isInteger(v) && v >= 0 && v <= Number.MAX_SAFE_INTEGER;
+  isValid(v: bigint | number): boolean {
+    const bigIntValue = BigInt(v);
+    return bigIntValue >= BigInt(0) && bigIntValue <= BigInt("18446744073709551615");
   }
-
-  public getInstance(v: number) {
-    return new U64(v);
-  }
+  serialize(v: bigint | number): string { return toLittleEndianHex(BigInt(v), this.sizeInBytes); }
+  deserialize(v: string): bigint { return BigInt(`0x${v}`); }
 }
 
-export class I64 extends SchemaType<bigint> {
-  sizeInBytes: number = 8;
+class I64Type extends SchemaType<bigint> {
+  sizeInBytes = 8;
   id = 8;
-
-  isValid(v: bigint): boolean {
-    // Since JavaScript doesn't natively support 64-bit signed integers,
-    // you can use BigInt for validation
-    return typeof v === 'bigint';
+  isValid(v: bigint | number): boolean {
+    const bigIntValue = BigInt(v);
+    return bigIntValue >= BigInt("-9223372036854775808") && bigIntValue <= BigInt("9223372036854775807");
   }
-
-  public getInstance(v: bigint) {
-    return new I64(v);
+  serialize(v: bigint | number): string { return toLittleEndianHex(BigInt(v) & BigInt("0xFFFFFFFFFFFFFFFF"), this.sizeInBytes); }
+  deserialize(v: string): bigint { 
+    const num = BigInt(`0x${v}`);
+    return num > BigInt("9223372036854775807") ? num - BigInt("18446744073709551616") : num;
   }
 }
 
-export class F32 extends SchemaType<number> {
-  sizeInBytes: number = 4;
+class F32Type extends SchemaType<number> {
+  sizeInBytes = 4;
   id = 9;
-
-  isValid(v: number): boolean {
-    // For f32, typically you would check if it's a finite number
-    return Number.isFinite(v);
+  isValid(v: number): boolean { return !isNaN(v) && Math.fround(v) === v; }
+  serialize(v: number): string { 
+    const buffer = new ArrayBuffer(4);
+    new Float32Array(buffer)[0] = v;
+    return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).reverse().join('');
   }
-
-  public getInstance(v: number) {
-    return new F32(v);
+  deserialize(v: string): number { 
+    const buffer = new ArrayBuffer(4);
+    const view = new DataView(buffer);
+    view.setUint32(0, parseInt(v, 16), true);
+    return new Float32Array(buffer)[0];
   }
 }
 
-export class F64 extends SchemaType<number> {
-  sizeInBytes: number = 8;
+class F64Type extends SchemaType<number> {
+  sizeInBytes = 8;
   id = 10;
-
-  isValid(v: number): boolean {
-    // For f64, typically you would check if it's a finite number
-    return Number.isFinite(v);
+  isValid(v: number): boolean { return !isNaN(v) && Number.isFinite(v); }
+  serialize(v: number): string { 
+    const buffer = new ArrayBuffer(8);
+    new Float64Array(buffer)[0] = v;
+    return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).reverse().join('');
   }
-
-  public getInstance(v: number) {
-    return new F64(v);
+  deserialize(v: string): number { 
+    const buffer = new ArrayBuffer(8);
+    const view = new DataView(buffer);
+    view.setBigUint64(0, BigInt(`0x${v}`), true);
+    return new Float64Array(buffer)[0];
   }
 }
 
-export class Hash extends SchemaType<string> {
-  sizeInBytes: number = 32;
+class HashType extends SchemaType<string> {
+  sizeInBytes = 32;
   id = 11;
-
-  isValid(v: string): boolean {
-    return v.length > 0;
-  }
-
-  public getInstance(v: string) {
-    return new Hash(v);
-  }
-
-  public static createFromObject(d: any): Hash {
-    if (typeof d !== 'object') throw Error('Passed item is not an object in Hash.')
-
-    const textEncoder = new TextEncoder();
-
-    const bytes = textEncoder.encode(d)
-
-    return new Hash(bytesToBlakeTwo256Hash(bytes));
-  }
+  isValid(v: string): boolean { return /^0x[a-fA-F0-9]{64}$/.test(v); }
+  serialize(v: string): string { return v.slice(2); } // Remove '0x' prefix
+  deserialize(v: string): string { return `0x${v}`; }
 }
+
+export const Char = new CharType();
+export const U8 = new U8Type();
+export const I8 = new I8Type();
+export const U16 = new U16Type();
+export const I16 = new I16Type();
+export const U32 = new U32Type();
+export const I32 = new I32Type();
+export const U64 = new U64Type();
+export const I64 = new I64Type();
+export const F32 = new F32Type();
+export const F64 = new F64Type();
+export const Hash = new HashType();
+
+type SchemaDefinition = Record<string, SchemaType<any>>;
 
 export type SchemaObject = {
   [key: string]: SchemaType<any>
 }
 
-export class Schema<T extends Record<string, SchemaType<any>>> {
-
+export class Schema<T extends SchemaDefinition> {
   private def: T;
   private schemaHash: string;
 
@@ -208,7 +177,11 @@ export class Schema<T extends Record<string, SchemaType<any>>> {
     this.schemaHash = this.getSchemaHash();
   }
 
-  public async getAttestation(api: TrueApi, address: string): Promise<T> {
+  static create<T extends SchemaDefinition>(def: T) {
+    return new Schema(def);
+  }
+
+  public async getAttestation(api: TrueApi, address: string): Promise<{[K in keyof T]: T[K] extends SchemaType<infer V> ? V : never}> {
     const data = await getAttestation(
       api.network, address,
       this.getSchemaHash()
@@ -217,17 +190,28 @@ export class Schema<T extends Record<string, SchemaType<any>>> {
     if (!data) throw Error("Attestation doesn't not exist.")
 
     // Convert array data to structured schema object.
-    const response: {
-      [key: string]: SchemaType<any>
-    } = {}
-    const encoder = new TextEncoder()
+    const response: {[K in keyof T]: T[K] extends SchemaType<infer V> ? V : never} = {} as any;
 
-    this.getSortedEntries(this.def).map((i, index) => response[i[0]] = i[1].getInstance(decodeBytesToNumber(encoder.encode(data[index].toString()))));
+    const sortedEntries = Object.entries(this.def).sort((a, b) => b[0].localeCompare(a[0]));
 
-    return response as any;
+    sortedEntries.forEach((entry, index) => {
+      const [key, schemaType] = entry;
+      const value = data[index];
+      
+      // Convert the value to string if it's a number
+      const stringValue = typeof value === 'number' ? value.toString(16).padStart(schemaType.sizeInBytes * 2, '0') : value;
+      
+      if (typeof stringValue !== 'string') {
+        throw new Error(`Unexpected data type for ${key}: ${typeof value}`);
+      }
+      
+      response[key as keyof T] = schemaType.deserialize(stringValue) as any;
+    });
+
+    return response;
   }
 
-  private getSortedEntries(item: T) {
+  private getSortedEntries(item: T | {[K in keyof T]: T[K] extends SchemaType<infer V> ? V : never}) {
     return Object.entries(item).sort((a, b) => b[0].localeCompare(a[0]))
   }
 
@@ -280,26 +264,37 @@ export class Schema<T extends Record<string, SchemaType<any>>> {
 
     return await createSchema(api.network, api.account, api.issuerHash, this)
   }
+  private validate(data: {[K in keyof T]: T[K] extends SchemaType<infer V> ? V : never}): void {
+    for (const [key, value] of Object.entries(data)) {
+      if (!this.def[key].isValid(value)) {
+        throw new Error(`Invalid value for ${key}: ${value}`);
+      }
+    }
+  }
+  public async attest(api: TrueApi, user: string, attestation: {[K in keyof T]: T[K] extends SchemaType<infer V> ? V : never}) {
+    this.validate(attestation);
 
-  public async attest(api: TrueApi, user: string, attestation: T) {
     // Check if issuer hash exists in the api.
     if (!api.issuerHash) throw Error("issuerHash property does not exist on TrueApi, try registering an issuer.")
 
     // Serialize the attestation values. 
-    const values = this.getSortedEntries(attestation).map(i => toLittleEndianHex(i[1].value, i[1].sizeInBytes));
-
+    const values = this.getSortedEntries(attestation).map(([key, value]) => {
+    console.log(key, value)
+      return this.def[key].serialize(value);
+    });
+    console.log('values', values)
     // Check if schema exists, if not register & attest.
     if (!await this.ifExistAlready(api)) {
-      // do a combined transaction of register & attest on-chain.
+      // Do a combined transaction of register & attest on-chain.
       const schemaTx = await createSchemaTx(api.network, api.account, api.issuerHash, this)
 
-      const attestationTx = await createAttestationTx(api.network, api.account, api.issuerHash, this, toTrueNetworkAddress(user), values);
+      const attestationTx = await createAttestationTx(api.network, api.account, api.issuerHash, this, user, values);
 
       return new Promise<string | undefined>(async (resolve, _) => {
         await api.network.tx.utility.batch([schemaTx, attestationTx]).signAndSend(api.account, ({ status, events }) => {
           events.forEach(({ event: { method } }) => {
             if (method == 'ExtrinsicFailed') {
-              throw Error(`Transaction failed, error attesting on-chain for the user. \ntx: ${status.hash}`);
+              throw Error(`Transaction failed, error attesting on-chain for the users. \ntx: ${status.hash}`);
             }
           });
 
@@ -312,6 +307,6 @@ export class Schema<T extends Record<string, SchemaType<any>>> {
       });
     }
 
-    return await createAttestation(api.network, api.account, api.issuerHash, this, toTrueNetworkAddress(user), values);
+    return await createAttestation(api.network, api.account, api.issuerHash, this, user, values);
   }
 }

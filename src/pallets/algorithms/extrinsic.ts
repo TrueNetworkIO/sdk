@@ -36,10 +36,10 @@ export const saveAlgo = async (api: ApiPromise, account: KeyringPair, schemaHash
 }
 
 
-export const runAlgo = async (api: ApiPromise, account: KeyringPair, userId: string, algorithmId: number): Promise<number> => {
+export const runAlgo = async (api: ApiPromise, issuerHash: string, account: KeyringPair, userId: string, algorithmId: number): Promise<number> => {
   return await new Promise<number>((resolve, reject) => {
     api.tx[ALGORITHM_PALLET_NAME]
-      .runAlgoFor(userId, algorithmId)
+      .runAlgoFor(issuerHash, userId, algorithmId)
       .signAndSend(account, (result) => {
 
         let reputationScore: number = -1

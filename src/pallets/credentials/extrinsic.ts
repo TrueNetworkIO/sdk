@@ -100,16 +100,28 @@ export const createAttestation = async (api: ApiPromise, account: KeyringPair, i
     api.tx[CREDENTIALS_PALLET_NAME]
       .attest(issuerHash, schema.getSchemaHash(), attestedTo, values)
       .signAndSend(account, (result) => {
-        result.events.forEach(({ event: { method } }) => {
-          if (method == 'AttestationCreated') {
-            console.log('Attestation Created: InBlock')
+        if (result.dispatchError) {
+          if (result.dispatchError.isModule) {
+            // for module errors, we have the section indexed, lookup
+            const decoded = api.registry.findMetaError(result.dispatchError.asModule);
+            const { docs, name, section } = decoded;
+    
+            console.log(`Dispatch Error: ${section}.${name}: ${docs.join(' ')}`);
+          } else {
+            // Other, CannotLookup, BadOrigin, no extra info
+            console.log('Extras: ', result.dispatchError.toString());
           }
-          if (method == 'ExtrinsicFailed') {
-            reject(`Transaction failed, error attesting on-chain for the user. \ntx: ${result.status.hash}`);
-          }
-        });
+        }
 
         if (result.status.isFinalized) {
+          result.events.forEach(({ event: { method } }) => {
+            if (method == 'AttestationCreated') {
+              console.log('Attestation Created: InBlock')
+            }
+            if (method == 'ExtrinsicFailed') {
+              reject(`Transaction failed, error attesting on-chain for the user. \ntx: ${result.status.hash}`);
+            }
+          });
           console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
           resolve(`${result.status.asFinalized}`)
         }
