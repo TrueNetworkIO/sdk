@@ -54,10 +54,10 @@ export const createSchema = async (api: ApiPromise, account: KeyringPair, issuer
           }
         });
 
-        if (result.status.isFinalized) {
-          console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
-          if (!schemaHash) throw Error(`Error registering the schema, tx: ${result.status.asFinalized}`)
-          resolve(`${result.status.asFinalized}`);
+        if (result.status.isInBlock) {
+          console.log(`Transaction finalized at blockHash ${result.status.asInBlock}`);
+          if (!schemaHash) throw Error(`Error registering the schema, tx: ${result.status.asInBlock}`)
+          resolve(`${result.status.asInBlock}`);
         }
       });
   });
@@ -113,7 +113,7 @@ export const createAttestation = async (api: ApiPromise, account: KeyringPair, i
           }
         }
 
-        if (result.status.isFinalized) {
+        if (result.status.isInBlock) {
           result.events.forEach(({ event: { method } }) => {
             if (method == 'AttestationCreated') {
               console.log('Attestation Created: InBlock')
@@ -122,8 +122,8 @@ export const createAttestation = async (api: ApiPromise, account: KeyringPair, i
               reject(`Transaction failed, error attesting on-chain for the user. \ntx: ${result.status.hash}`);
             }
           });
-          console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
-          resolve(`${result.status.asFinalized}`)
+          console.log(`Transaction finalized at blockHash ${result.status.asInBlock}`);
+          resolve(`${result.status.asInBlock}`)
         }
       });
   });

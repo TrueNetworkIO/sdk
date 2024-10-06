@@ -2,7 +2,6 @@ import { bytesToBlakeTwo256Hash, decodeBytesToNumber, numberToUint8Array, toLitt
 import { checkIfSchemaExist, getAttestation } from "../pallets/credentials/state";
 import { createAttestation, createAttestationTx, createSchema, createSchemaTx } from "../pallets/credentials/extrinsic";
 import { TrueApi } from "..";
-import { toTrueNetworkAddress } from "../utils/address";
 
 type PrimitiveType = string | number | bigint;
 
@@ -279,10 +278,8 @@ export class Schema<T extends SchemaDefinition> {
 
     // Serialize the attestation values. 
     const values = this.getSortedEntries(attestation).map(([key, value]) => {
-    console.log(key, value)
       return this.def[key].serialize(value);
     });
-    console.log('values', values)
     // Check if schema exists, if not register & attest.
     if (!await this.ifExistAlready(api)) {
       // Do a combined transaction of register & attest on-chain.
@@ -298,9 +295,9 @@ export class Schema<T extends SchemaDefinition> {
             }
           });
 
-          if (status.isFinalized) {
-            console.log(`Transaction finalized at blockHash ${status.asFinalized}`);
-            resolve(`${status.asFinalized}`);
+          if (status.isInBlock) {
+            console.log(`Transaction is inBlock at blockHash ${status.asInBlock}`);
+            resolve(`${status.asInBlock}`);
 
           }
         });

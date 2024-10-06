@@ -25,8 +25,8 @@ export const createIssuer = async (api: ApiPromise, account: KeyringPair, name: 
           }
         });
 
-        if (result.status.isFinalized) {
-          console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
+        if (result.status.isInBlock) {
+          console.log(`Transaction finalized at blockHash ${result.status.asInBlock}`);
           resolve(`0x${hash}`);
         }
       });
@@ -61,8 +61,8 @@ export const editIssuer = async (api: ApiPromise, account: KeyringPair, hashId: 
           }
         });
 
-        if (result.status.isFinalized) {
-          console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
+        if (result.status.isInBlock) {
+          console.log(`Transaction finalized at blockHash ${result.status.asInBlock}`);
           resolve(`0x${newHash}`);
         }
       });
