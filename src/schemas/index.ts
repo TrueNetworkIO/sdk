@@ -3,7 +3,7 @@ import { checkIfSchemaExist, getAttestation } from "../pallets/credentials/state
 import { createAttestation, createAttestationTx, createSchema, createSchemaTx } from "../pallets/credentials/extrinsic";
 import { TrueApi } from "..";
 
-type PrimitiveType = string | number | bigint;
+type PrimitiveType = string | number | boolean | bigint;
 
 abstract class SchemaType<T extends PrimitiveType> {
   abstract sizeInBytes: number;
@@ -147,6 +147,24 @@ class HashType extends SchemaType<string> {
   deserialize(v: string): string { return `0x${v}`; }
 }
 
+class BoolType extends SchemaType<boolean> {
+  sizeInBytes = 1;
+  id = 12;
+  isValid(v: boolean): boolean { return true; }
+
+  serialize(v: boolean): string { return toLittleEndianHex(v ? 1 : 0, this.sizeInBytes); ; }
+  deserialize(v: string): boolean { return parseInt(v, 16) == 1; }
+}
+
+class StringType extends SchemaType<string> {
+  sizeInBytes = 128;
+  id = 13;
+  isValid(v: string): boolean { return v.length < 128; }
+
+  serialize(v: string): string { return v; }
+  deserialize(v: string): string { return v; }
+}
+
 export const Char = new CharType();
 export const U8 = new U8Type();
 export const I8 = new I8Type();
@@ -159,6 +177,8 @@ export const I64 = new I64Type();
 export const F32 = new F32Type();
 export const F64 = new F64Type();
 export const Hash = new HashType();
+export const Bool = new BoolType();
+export const Text = new StringType();
 
 type SchemaDefinition = Record<string, SchemaType<any>>;
 
