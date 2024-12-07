@@ -1,5 +1,5 @@
 import { bytesToBlakeTwo256Hash, decodeBytesToNumber, numberToUint8Array, toLittleEndianHex } from "../utils/hashing";
-import { checkIfSchemaExist, getAttestation } from "../pallets/credentials/state";
+import { checkIfSchemaExist, getAttestationForSchema } from "../pallets/credentials/state";
 import { createAttestation, createAttestationTx, createSchema, createSchemaTx } from "../pallets/credentials/extrinsic";
 import { TrueApi } from "..";
 
@@ -10,7 +10,7 @@ abstract class SchemaType<T extends PrimitiveType> {
   abstract id: number;
 
   abstract isValid(v: T): boolean;
-  abstract serialize(v: T): string; 
+  abstract serialize(v: T): string;
 
   abstract deserialize(v: string): T;
 }
@@ -36,7 +36,7 @@ class I8Type extends SchemaType<number> {
   id = 2;
   isValid(v: number): boolean { return Number.isInteger(v) && v >= -128 && v <= 127; }
   serialize(v: number): string { return toLittleEndianHex(v & 0xFF, this.sizeInBytes); }
-  deserialize(v: string): number { 
+  deserialize(v: string): number {
     let num = parseInt(v, 16);
     return num > 127 ? num - 256 : num;
   }
@@ -55,7 +55,7 @@ class I16Type extends SchemaType<number> {
   id = 4;
   isValid(v: number): boolean { return Number.isInteger(v) && v >= -32768 && v <= 32767; }
   serialize(v: number): string { return toLittleEndianHex(v & 0xFFFF, this.sizeInBytes); }
-  deserialize(v: string): number { 
+  deserialize(v: string): number {
     let num = parseInt(v, 16);
     return num > 32767 ? num - 65536 : num;
   }
@@ -74,7 +74,7 @@ class I32Type extends SchemaType<number> {
   id = 6;
   isValid(v: number): boolean { return Number.isInteger(v) && v >= -2147483648 && v <= 2147483647; }
   serialize(v: number): string { return toLittleEndianHex(v >>> 0, this.sizeInBytes); }
-  deserialize(v: string): number { 
+  deserialize(v: string): number {
     let num = parseInt(v, 16);
     return num > 2147483647 ? num - 4294967296 : num;
   }
@@ -99,7 +99,7 @@ class I64Type extends SchemaType<bigint> {
     return bigIntValue >= BigInt("-9223372036854775808") && bigIntValue <= BigInt("9223372036854775807");
   }
   serialize(v: bigint | number): string { return toLittleEndianHex(BigInt(v) & BigInt("0xFFFFFFFFFFFFFFFF"), this.sizeInBytes); }
-  deserialize(v: string): bigint { 
+  deserialize(v: string): bigint {
     const num = BigInt(`0x${v}`);
     return num > BigInt("9223372036854775807") ? num - BigInt("18446744073709551616") : num;
   }
@@ -109,12 +109,12 @@ class F32Type extends SchemaType<number> {
   sizeInBytes = 4;
   id = 9;
   isValid(v: number): boolean { return !isNaN(v) && Math.fround(v) === v; }
-  serialize(v: number): string { 
+  serialize(v: number): string {
     const buffer = new ArrayBuffer(4);
     new Float32Array(buffer)[0] = v;
     return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).reverse().join('');
   }
-  deserialize(v: string): number { 
+  deserialize(v: string): number {
     const buffer = new ArrayBuffer(4);
     const view = new DataView(buffer);
     view.setUint32(0, parseInt(v, 16), true);
@@ -126,12 +126,12 @@ class F64Type extends SchemaType<number> {
   sizeInBytes = 8;
   id = 10;
   isValid(v: number): boolean { return !isNaN(v) && Number.isFinite(v); }
-  serialize(v: number): string { 
+  serialize(v: number): string {
     const buffer = new ArrayBuffer(8);
     new Float64Array(buffer)[0] = v;
     return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).reverse().join('');
   }
-  deserialize(v: string): number { 
+  deserialize(v: string): number {
     const buffer = new ArrayBuffer(8);
     const view = new DataView(buffer);
     view.setBigUint64(0, BigInt(`0x${v}`), true);
@@ -152,7 +152,7 @@ class BoolType extends SchemaType<boolean> {
   id = 12;
   isValid(v: boolean): boolean { return true; }
 
-  serialize(v: boolean): string { return toLittleEndianHex(v ? 1 : 0, this.sizeInBytes); ; }
+  serialize(v: boolean): string { return toLittleEndianHex(v ? 1 : 0, this.sizeInBytes);; }
   deserialize(v: string): boolean { return parseInt(v, 16) == 1; }
 }
 
@@ -200,38 +200,50 @@ export class Schema<T extends SchemaDefinition> {
     return new Schema(def);
   }
 
-  public async getAttestation(api: TrueApi, address: string): Promise<{[K in keyof T]: T[K] extends SchemaType<infer V> ? V : never}> {
-    const data = await getAttestation(
-      api.network, address,
-      this.getSchemaHash()
+  public async getAttestations(api: TrueApi, address: string): Promise<{ [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }[]> {
+    const data = await getAttestationForSchema(
+      api.network, {
+      "Ethereum": address
+    },
+      api.issuerHash!,
+      this
     )
 
     if (!data) throw Error("Attestation doesn't not exist.")
 
     // Convert array data to structured schema object.
-    const response: {[K in keyof T]: T[K] extends SchemaType<infer V> ? V : never} = {} as any;
+    const response: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }[] = [];
 
     const sortedEntries = Object.entries(this.def).sort((a, b) => b[0].localeCompare(a[0]));
 
-    sortedEntries.forEach((entry, index) => {
-      const [key, schemaType] = entry;
-      const value = data[index];
-      
-      // Convert the value to string if it's a number
-      const stringValue = typeof value === 'number' ? value.toString(16).padStart(schemaType.sizeInBytes * 2, '0') : value;
-      
-      if (typeof stringValue !== 'string') {
-        throw new Error(`Unexpected data type for ${key}: ${typeof value}`);
-      }
-      
-      response[key as keyof T] = schemaType.deserialize(stringValue) as any;
-    });
+    data.forEach((d: any, i: number) => {
+      let objs: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never } = {} as any;
+      sortedEntries.forEach((entry, index) => {
+        const [key, schemaType] = entry;
+        const value = d[index];
+  
+        // Convert the value to string if it's a number
+        const stringValue = typeof value === 'number' ? value.toString(16).padStart(schemaType.sizeInBytes * 2, '0') : value;
+  
+        if (typeof stringValue !== 'string') {
+          throw new Error(`Unexpected data type for ${key}: ${typeof value}`);
+        }
+  
+        objs[key as keyof T] = schemaType.deserialize(stringValue) as any;
+      });
+
+      response.push(objs)
+    })
 
     return response;
   }
 
-  private getSortedEntries(item: T | {[K in keyof T]: T[K] extends SchemaType<infer V> ? V : never}) {
+  private getSortedEntries(item: T | { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }) {
     return Object.entries(item).sort((a, b) => b[0].localeCompare(a[0]))
+  }
+
+  public getEntries() {
+    return this.getSortedEntries(this.def);
   }
 
   // Returns the Schema Object to pass in the polkadot js api.
@@ -283,14 +295,14 @@ export class Schema<T extends SchemaDefinition> {
 
     return await createSchema(api.network, api.account, api.issuerHash, this)
   }
-  private validate(data: {[K in keyof T]: T[K] extends SchemaType<infer V> ? V : never}): void {
+  private validate(data: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }): void {
     for (const [key, value] of Object.entries(data)) {
       if (!this.def[key].isValid(value)) {
         throw new Error(`Invalid value for ${key}: ${value}`);
       }
     }
   }
-  public async attest(api: TrueApi, user: string, attestation: {[K in keyof T]: T[K] extends SchemaType<infer V> ? V : never}) {
+  public async attest(api: TrueApi, user: string, attestation: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }) {
     this.validate(attestation);
 
     // Check if issuer hash exists in the api.
