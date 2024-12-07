@@ -13,6 +13,66 @@ abstract class SchemaType<T extends PrimitiveType> {
   abstract serialize(v: T): string;
 
   abstract deserialize(v: string): T;
+
+  protected hexToLittleEndianNumber(hex: string): number {
+    // Remove '0x' prefix if present
+    hex = hex.replace('0x', '');
+    
+    // Ensure the hex string has the correct length
+    while (hex.length < this.sizeInBytes * 2) {
+      hex = hex + '0';
+    }
+    
+    // Convert to little-endian
+    const bytes = [];
+    for (let i = 0; i < hex.length; i += 2) {
+      bytes.push(parseInt(hex.substr(i, 2), 16));
+    }
+    
+    // Create a DataView to handle the conversion
+    const buffer = new ArrayBuffer(this.sizeInBytes);
+    const view = new DataView(buffer);
+    
+    // Set bytes in little-endian order
+    bytes.forEach((byte, index) => {
+      view.setUint8(index, byte);
+    });
+    
+    // Read the value based on size
+    switch (this.sizeInBytes) {
+      case 1: return view.getUint8(0);
+      case 2: return view.getUint16(0, true);
+      case 4: return view.getUint32(0, true);
+      default: return view.getUint32(0, true);
+    }
+  }
+
+  protected hexToLittleEndianBigInt(hex: string): bigint {
+    // Remove '0x' prefix if present
+    hex = hex.replace('0x', '');
+    
+    // Ensure the hex string has the correct length
+    while (hex.length < this.sizeInBytes * 2) {
+      hex = hex + '0';
+    }
+    
+    // Convert to little-endian
+    const bytes = [];
+    for (let i = 0; i < hex.length; i += 2) {
+      bytes.push(parseInt(hex.substr(i, 2), 16));
+    }
+    
+    // Create a DataView to handle the conversion
+    const buffer = new ArrayBuffer(this.sizeInBytes);
+    const view = new DataView(buffer);
+    
+    // Set bytes in little-endian order
+    bytes.forEach((byte, index) => {
+      view.setUint8(index, byte);
+    });
+    
+    return view.getBigUint64(0, true);
+  }
 }
 
 class CharType extends SchemaType<string> {
@@ -28,7 +88,7 @@ class U8Type extends SchemaType<number> {
   id = 1;
   isValid(v: number): boolean { return Number.isInteger(v) && v >= 0 && v <= 255; }
   serialize(v: number): string { return toLittleEndianHex(v, this.sizeInBytes); }
-  deserialize(v: string): number { return parseInt(v, 16); }
+  deserialize(v: string): number { return this.hexToLittleEndianNumber(v); }
 }
 
 class I8Type extends SchemaType<number> {
@@ -37,7 +97,7 @@ class I8Type extends SchemaType<number> {
   isValid(v: number): boolean { return Number.isInteger(v) && v >= -128 && v <= 127; }
   serialize(v: number): string { return toLittleEndianHex(v & 0xFF, this.sizeInBytes); }
   deserialize(v: string): number {
-    let num = parseInt(v, 16);
+    const num = this.hexToLittleEndianNumber(v);
     return num > 127 ? num - 256 : num;
   }
 }
@@ -47,7 +107,7 @@ class U16Type extends SchemaType<number> {
   id = 3;
   isValid(v: number): boolean { return Number.isInteger(v) && v >= 0 && v <= 65535; }
   serialize(v: number): string { return toLittleEndianHex(v, this.sizeInBytes); }
-  deserialize(v: string): number { return parseInt(v, 16); }
+  deserialize(v: string): number { return this.hexToLittleEndianNumber(v); }
 }
 
 class I16Type extends SchemaType<number> {
@@ -56,7 +116,7 @@ class I16Type extends SchemaType<number> {
   isValid(v: number): boolean { return Number.isInteger(v) && v >= -32768 && v <= 32767; }
   serialize(v: number): string { return toLittleEndianHex(v & 0xFFFF, this.sizeInBytes); }
   deserialize(v: string): number {
-    let num = parseInt(v, 16);
+    const num = this.hexToLittleEndianNumber(v);
     return num > 32767 ? num - 65536 : num;
   }
 }
@@ -66,7 +126,7 @@ class U32Type extends SchemaType<number> {
   id = 5;
   isValid(v: number): boolean { return Number.isInteger(v) && v >= 0 && v <= 4294967295; }
   serialize(v: number): string { return toLittleEndianHex(v, this.sizeInBytes); }
-  deserialize(v: string): number { return parseInt(v, 16); }
+  deserialize(v: string): number { return this.hexToLittleEndianNumber(v); }
 }
 
 class I32Type extends SchemaType<number> {
@@ -75,7 +135,7 @@ class I32Type extends SchemaType<number> {
   isValid(v: number): boolean { return Number.isInteger(v) && v >= -2147483648 && v <= 2147483647; }
   serialize(v: number): string { return toLittleEndianHex(v >>> 0, this.sizeInBytes); }
   deserialize(v: string): number {
-    let num = parseInt(v, 16);
+    const num = this.hexToLittleEndianNumber(v);
     return num > 2147483647 ? num - 4294967296 : num;
   }
 }
@@ -88,7 +148,9 @@ class U64Type extends SchemaType<bigint> {
     return bigIntValue >= BigInt(0) && bigIntValue <= BigInt("18446744073709551615");
   }
   serialize(v: bigint | number): string { return toLittleEndianHex(BigInt(v), this.sizeInBytes); }
-  deserialize(v: string): bigint { return BigInt(`${v}`); }
+  deserialize(v: string): bigint { 
+    return this.hexToLittleEndianBigInt(v);
+  }
 }
 
 class I64Type extends SchemaType<bigint> {
@@ -99,8 +161,8 @@ class I64Type extends SchemaType<bigint> {
     return bigIntValue >= BigInt("-9223372036854775808") && bigIntValue <= BigInt("9223372036854775807");
   }
   serialize(v: bigint | number): string { return toLittleEndianHex(BigInt(v) & BigInt("0xFFFFFFFFFFFFFFFF"), this.sizeInBytes); }
-  deserialize(v: string): bigint {
-    const num = BigInt(`${v}`);
+  deserialize(v: string): bigint { 
+    const num = this.hexToLittleEndianBigInt(v);
     return num > BigInt("9223372036854775807") ? num - BigInt("18446744073709551616") : num;
   }
 }
@@ -108,34 +170,78 @@ class I64Type extends SchemaType<bigint> {
 class F32Type extends SchemaType<number> {
   sizeInBytes = 4;
   id = 9;
-  isValid(v: number): boolean { return !isNaN(v) && Math.fround(v) === v; }
+  isValid(v: number): boolean { 
+    return !isNaN(v) && Math.fround(v) === v; 
+  }
   serialize(v: number): string {
     const buffer = new ArrayBuffer(4);
-    new Float32Array(buffer)[0] = v;
-    return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).reverse().join('');
+    const view = new DataView(buffer);
+    view.setFloat32(0, v, true);
+    return Array.from(new Uint8Array(buffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
   }
   deserialize(v: string): number {
+    // Remove '0x' prefix if present
+    v = v.replace('0x', '');
+    
+    // Ensure the hex string has the correct length
+    while (v.length < this.sizeInBytes * 2) {
+      v = v + '0';
+    }
+    
+    const bytes = [];
+    for (let i = 0; i < v.length; i += 2) {
+      bytes.push(parseInt(v.substr(i, 2), 16));
+    }
+    
     const buffer = new ArrayBuffer(4);
     const view = new DataView(buffer);
-    view.setUint32(0, parseInt(v, 16), true);
-    return new Float32Array(buffer)[0];
+    
+    bytes.forEach((byte, index) => {
+      view.setUint8(index, byte);
+    });
+    
+    return view.getFloat32(0, true);
   }
 }
 
 class F64Type extends SchemaType<number> {
   sizeInBytes = 8;
   id = 10;
-  isValid(v: number): boolean { return !isNaN(v) && Number.isFinite(v); }
+  isValid(v: number): boolean { 
+    return !isNaN(v) && Number.isFinite(v); 
+  }
   serialize(v: number): string {
     const buffer = new ArrayBuffer(8);
-    new Float64Array(buffer)[0] = v;
-    return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).reverse().join('');
+    const view = new DataView(buffer);
+    view.setFloat64(0, v, true);
+    return Array.from(new Uint8Array(buffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
   }
   deserialize(v: string): number {
+    // Remove '0x' prefix if present
+    v = v.replace('0x', '');
+    
+    // Ensure the hex string has the correct length
+    while (v.length < this.sizeInBytes * 2) {
+      v = v + '0';
+    }
+    
+    const bytes = [];
+    for (let i = 0; i < v.length; i += 2) {
+      bytes.push(parseInt(v.substr(i, 2), 16));
+    }
+    
     const buffer = new ArrayBuffer(8);
     const view = new DataView(buffer);
-    view.setBigUint64(0, BigInt(`${v}`), true);
-    return new Float64Array(buffer)[0];
+    
+    bytes.forEach((byte, index) => {
+      view.setUint8(index, byte);
+    });
+    
+    return view.getFloat64(0, true);
   }
 }
 
