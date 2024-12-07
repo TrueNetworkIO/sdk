@@ -88,7 +88,7 @@ class U64Type extends SchemaType<bigint> {
     return bigIntValue >= BigInt(0) && bigIntValue <= BigInt("18446744073709551615");
   }
   serialize(v: bigint | number): string { return toLittleEndianHex(BigInt(v), this.sizeInBytes); }
-  deserialize(v: string): bigint { return BigInt(`0x${v}`); }
+  deserialize(v: string): bigint { return BigInt(`${v}`); }
 }
 
 class I64Type extends SchemaType<bigint> {
@@ -100,7 +100,7 @@ class I64Type extends SchemaType<bigint> {
   }
   serialize(v: bigint | number): string { return toLittleEndianHex(BigInt(v) & BigInt("0xFFFFFFFFFFFFFFFF"), this.sizeInBytes); }
   deserialize(v: string): bigint {
-    const num = BigInt(`0x${v}`);
+    const num = BigInt(`${v}`);
     return num > BigInt("9223372036854775807") ? num - BigInt("18446744073709551616") : num;
   }
 }
@@ -134,7 +134,7 @@ class F64Type extends SchemaType<number> {
   deserialize(v: string): number {
     const buffer = new ArrayBuffer(8);
     const view = new DataView(buffer);
-    view.setBigUint64(0, BigInt(`0x${v}`), true);
+    view.setBigUint64(0, BigInt(`${v}`), true);
     return new Float64Array(buffer)[0];
   }
 }
