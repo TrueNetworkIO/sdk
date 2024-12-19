@@ -1,6 +1,6 @@
 import { bytesToBlakeTwo256Hash, decodeBytesToNumber, numberToUint8Array, toLittleEndianHex } from "../utils/hashing";
 import { checkIfSchemaExist, getAttestationForSchema } from "../pallets/credentials/state";
-import { createAttestation, createAttestationTx, createSchema, createSchemaTx } from "../pallets/credentials/extrinsic";
+import { createAttestation, createAttestationTx, createSchema, createSchemaTx, updateAttestation } from "../pallets/credentials/extrinsic";
 import { TrueApi } from "..";
 
 type PrimitiveType = string | number | boolean | bigint;
@@ -17,27 +17,27 @@ abstract class SchemaType<T extends PrimitiveType> {
   protected hexToLittleEndianNumber(hex: string): number {
     // Remove '0x' prefix if present
     hex = hex.replace('0x', '');
-    
+
     // Ensure the hex string has the correct length
     while (hex.length < this.sizeInBytes * 2) {
       hex = hex + '0';
     }
-    
+
     // Convert to little-endian
     const bytes = [];
     for (let i = 0; i < hex.length; i += 2) {
       bytes.push(parseInt(hex.substr(i, 2), 16));
     }
-    
+
     // Create a DataView to handle the conversion
     const buffer = new ArrayBuffer(this.sizeInBytes);
     const view = new DataView(buffer);
-    
+
     // Set bytes in little-endian order
     bytes.forEach((byte, index) => {
       view.setUint8(index, byte);
     });
-    
+
     // Read the value based on size
     switch (this.sizeInBytes) {
       case 1: return view.getUint8(0);
@@ -50,27 +50,27 @@ abstract class SchemaType<T extends PrimitiveType> {
   protected hexToLittleEndianBigInt(hex: string): bigint {
     // Remove '0x' prefix if present
     hex = hex.replace('0x', '');
-    
+
     // Ensure the hex string has the correct length
     while (hex.length < this.sizeInBytes * 2) {
       hex = hex + '0';
     }
-    
+
     // Convert to little-endian
     const bytes = [];
     for (let i = 0; i < hex.length; i += 2) {
       bytes.push(parseInt(hex.substr(i, 2), 16));
     }
-    
+
     // Create a DataView to handle the conversion
     const buffer = new ArrayBuffer(this.sizeInBytes);
     const view = new DataView(buffer);
-    
+
     // Set bytes in little-endian order
     bytes.forEach((byte, index) => {
       view.setUint8(index, byte);
     });
-    
+
     return view.getBigUint64(0, true);
   }
 }
@@ -148,7 +148,7 @@ class U64Type extends SchemaType<bigint> {
     return bigIntValue >= BigInt(0) && bigIntValue <= BigInt("18446744073709551615");
   }
   serialize(v: bigint | number): string { return toLittleEndianHex(BigInt(v), this.sizeInBytes); }
-  deserialize(v: string): bigint { 
+  deserialize(v: string): bigint {
     return this.hexToLittleEndianBigInt(v);
   }
 }
@@ -161,7 +161,7 @@ class I64Type extends SchemaType<bigint> {
     return bigIntValue >= BigInt("-9223372036854775808") && bigIntValue <= BigInt("9223372036854775807");
   }
   serialize(v: bigint | number): string { return toLittleEndianHex(BigInt(v) & BigInt("0xFFFFFFFFFFFFFFFF"), this.sizeInBytes); }
-  deserialize(v: string): bigint { 
+  deserialize(v: string): bigint {
     const num = this.hexToLittleEndianBigInt(v);
     return num > BigInt("9223372036854775807") ? num - BigInt("18446744073709551616") : num;
   }
@@ -170,8 +170,8 @@ class I64Type extends SchemaType<bigint> {
 class F32Type extends SchemaType<number> {
   sizeInBytes = 4;
   id = 9;
-  isValid(v: number): boolean { 
-    return !isNaN(v) && Math.fround(v) === v; 
+  isValid(v: number): boolean {
+    return !isNaN(v) && Math.fround(v) === v;
   }
   serialize(v: number): string {
     const buffer = new ArrayBuffer(4);
@@ -184,24 +184,24 @@ class F32Type extends SchemaType<number> {
   deserialize(v: string): number {
     // Remove '0x' prefix if present
     v = v.replace('0x', '');
-    
+
     // Ensure the hex string has the correct length
     while (v.length < this.sizeInBytes * 2) {
       v = v + '0';
     }
-    
+
     const bytes = [];
     for (let i = 0; i < v.length; i += 2) {
       bytes.push(parseInt(v.substr(i, 2), 16));
     }
-    
+
     const buffer = new ArrayBuffer(4);
     const view = new DataView(buffer);
-    
+
     bytes.forEach((byte, index) => {
       view.setUint8(index, byte);
     });
-    
+
     return view.getFloat32(0, true);
   }
 }
@@ -209,8 +209,8 @@ class F32Type extends SchemaType<number> {
 class F64Type extends SchemaType<number> {
   sizeInBytes = 8;
   id = 10;
-  isValid(v: number): boolean { 
-    return !isNaN(v) && Number.isFinite(v); 
+  isValid(v: number): boolean {
+    return !isNaN(v) && Number.isFinite(v);
   }
   serialize(v: number): string {
     const buffer = new ArrayBuffer(8);
@@ -223,24 +223,24 @@ class F64Type extends SchemaType<number> {
   deserialize(v: string): number {
     // Remove '0x' prefix if present
     v = v.replace('0x', '');
-    
+
     // Ensure the hex string has the correct length
     while (v.length < this.sizeInBytes * 2) {
       v = v + '0';
     }
-    
+
     const bytes = [];
     for (let i = 0; i < v.length; i += 2) {
       bytes.push(parseInt(v.substr(i, 2), 16));
     }
-    
+
     const buffer = new ArrayBuffer(8);
     const view = new DataView(buffer);
-    
+
     bytes.forEach((byte, index) => {
       view.setUint8(index, byte);
     });
-    
+
     return view.getFloat64(0, true);
   }
 }
@@ -308,9 +308,7 @@ export class Schema<T extends SchemaDefinition> {
 
   public async getAttestations(api: TrueApi, address: string): Promise<{ [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }[]> {
     const data = await getAttestationForSchema(
-      api.network, {
-      "Ethereum": address
-    },
+      api.network, address,
       api.issuerHash!,
       this
     )
@@ -327,14 +325,14 @@ export class Schema<T extends SchemaDefinition> {
       sortedEntries.forEach((entry, index) => {
         const [key, schemaType] = entry;
         const value = d[index];
-  
+
         // Convert the value to string if it's a number
         const stringValue = typeof value === 'number' ? value.toString(16).padStart(schemaType.sizeInBytes * 2, '0') : value;
-  
+
         if (typeof stringValue !== 'string') {
           throw new Error(`Unexpected data type for ${key}: ${typeof value}`);
         }
-  
+
         objs[key as keyof T] = schemaType.deserialize(stringValue) as any;
       });
 
@@ -401,6 +399,7 @@ export class Schema<T extends SchemaDefinition> {
 
     return await createSchema(api.network, api.account, api.issuerHash, this)
   }
+
   private validate(data: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }): void {
     for (const [key, value] of Object.entries(data)) {
       if (!this.def[key].isValid(value)) {
@@ -408,6 +407,7 @@ export class Schema<T extends SchemaDefinition> {
       }
     }
   }
+
   public async attest(api: TrueApi, user: string, attestation: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }) {
     this.validate(attestation);
 
@@ -443,5 +443,42 @@ export class Schema<T extends SchemaDefinition> {
     }
 
     return await createAttestation(api.network, api.account, api.issuerHash, this, user, values);
+  }
+
+  public async updateAttestation(api: TrueApi, user: string, attestationId: number, attestation: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }) {
+    this.validate(attestation);
+
+    // Check if issuer hash exists in the api.
+    if (!api.issuerHash) throw Error("issuerHash property does not exist on TrueApi, try registering an issuer.")
+
+    // Serialize the attestation values. 
+    const values = this.getSortedEntries(attestation).map(([key, value]) => {
+      return this.def[key].serialize(value);
+    });
+    // Check if schema exists, if not register & attest.
+    if (!await this.ifExistAlready(api)) {
+      // Do a combined transaction of register & attest on-chain.
+      const schemaTx = await createSchemaTx(api.network, api.account, api.issuerHash, this)
+
+      const attestationTx = await createAttestationTx(api.network, api.account, api.issuerHash, this, user, values);
+
+      return new Promise<string | undefined>(async (resolve, _) => {
+        await api.network.tx.utility.batch([schemaTx, attestationTx]).signAndSend(api.account, ({ status, events }) => {
+          events.forEach(({ event: { method } }) => {
+            if (method == 'ExtrinsicFailed') {
+              throw Error(`Transaction failed, error attesting on-chain for the users. \ntx: ${status.hash}`);
+            }
+          });
+
+          if (status.isInBlock) {
+            console.log(`Transaction is inBlock at blockHash ${status.asInBlock}`);
+            resolve(`${status.asInBlock}`);
+
+          }
+        });
+      });
+    }
+
+    return await updateAttestation(api.network, api.account, api.issuerHash, this, user, attestationId, values);
   }
 }

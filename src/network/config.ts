@@ -18,3 +18,5 @@ export const localnet: NetworkConfig = {
   rpc: 'ws://127.0.0.1:9944',
   denomination: 10
 }
+
+export const prismUrl = 'https://prism.truenetwork.io'

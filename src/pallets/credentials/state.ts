@@ -1,6 +1,6 @@
 import { ApiPromise } from "@polkadot/api"
 import { Schema, SchemaObject } from "../../schemas";
-import { convertBytesToSerialize, convertHexToString } from "../../utils/hashing";
+import { getWalletWithType } from "../../utils";
 
 export const CREDENTIALS_PALLET_NAME = 'credentialsModule'
 
@@ -37,16 +37,27 @@ export const checkIfSchemaExist = async (api: ApiPromise, schemaHash: string): P
 // }
 
 
-export const getAttestationForSchema = async (api: ApiPromise, account: any, issuerHash: string, schema: Schema<any>): Promise<(string | number)[] | undefined> => {
-  const response = await api.query[CREDENTIALS_PALLET_NAME].attestations(account, issuerHash, schema.getSchemaHash());
+export const getAttestationForSchema = async (api: ApiPromise, account: string, issuerHash: string, schema: Schema<any>): Promise<(string | number)[] | undefined> => {
+  const walletWithType = getWalletWithType(account);
+
+  const response = await api.query[CREDENTIALS_PALLET_NAME].attestations(walletWithType, issuerHash, schema.getSchemaHash());
 
   const data = (response.toJSON() as any)
 
-  if (!data || data.length == 0) return;
+  if (!data || data.length == 0) return [];
 
-  const cred: (string | number)[] = []
+  return data
+}
 
-  console.log('data values', data)
+
+export const getAttestationsFromSchemaHash = async (api: ApiPromise, account: string, issuerHash: string, schemaHash: string): Promise<(string | number)[] | undefined> => {
+  const walletWithType = getWalletWithType(account);
+
+  const response = await api.query[CREDENTIALS_PALLET_NAME].attestations(walletWithType, issuerHash, schemaHash);
+
+  const data = (response.toJSON() as any)
+
+  if (!data || data.length == 0) return [];
 
   return data
 }
