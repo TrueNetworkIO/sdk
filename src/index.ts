@@ -5,7 +5,7 @@ import { createIssuer } from "./pallets/issuer/extrinsic";
 import { checkAndConvertAddresses } from "./utils/address";
 
 import { runAlgo } from "./pallets/algorithms/extrinsic";
-import { Schema } from "./schemas";
+import { getSchemaFromHash } from "./pallets/credentials/state";
 
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
@@ -54,6 +54,10 @@ export class TrueApi {
     if (!this.issuerHash) throw Error("Issuer not found.")
 
     return await runAlgo(this.network, this.issuerHash, this.account, user, algoId)
+  }
+
+  public async getSchemaFromHash(schemaHash: string) {
+    return await getSchemaFromHash(this.network, schemaHash);
   }
 
   // /**

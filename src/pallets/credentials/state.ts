@@ -14,27 +14,15 @@ export const checkIfSchemaExist = async (api: ApiPromise, schemaHash: string): P
   return true;
 }
 
-// TODO: implement the below method, to return instance of Schema Class.
-// export const getSchema = async (api: ApiPromise, schemaHash: string): Promise<SchemaObject | undefined> => {
-//   const response = await api.query[CREDENTIALS_PALLET_NAME].schemas(schemaHash);
+export const getSchemaFromHash = async (api: ApiPromise, schemaHash: string): Promise<SchemaObject | undefined> => {
+  const response = await api.query[CREDENTIALS_PALLET_NAME].schemas(schemaHash);
 
-//   const data = (response.toJSON() as any)
+  const data = (response.toHuman() as any)
 
-//   if (!data || data.length == 0) return;
+  if (!data || data.length == 0) return;
 
-//   const schema: any = {}
-
-//   data.forEach((i: any[]) => {
-//     const key = convertHexToString(i[0])
-//     const schemaType = stringToSchemaType(i[1])
-
-//     if (!schemaType) throw Error("Invalid schema type coming from nodes.")
-
-//     schema[key] = schemaType
-
-//   })
-//   return schema
-// }
+  return data
+}
 
 
 export const getAttestationForSchema = async (api: ApiPromise, account: string, issuerHash: string, schema: Schema<any>): Promise<(string | number)[] | undefined> => {

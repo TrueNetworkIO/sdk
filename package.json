@@ -1,6 +1,6 @@
 {
   "name": "@truenetworkio/sdk",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "True Network SDK is the abstracted interface for interacting with True Network nodes.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -17,7 +17,7 @@
     "build": "npm i && npx tsc",
     "test": "jest"
   },
-  "keywords": [],
+  "keywords": ["True Network", "Attestation", "Polkadot", "Substrate", "Blockchain", "Reputation", "Identity", "Decentralized", "Web3"],
   "author": "Tushar Ojha",
   "license": "ISC",
   "dependencies": {

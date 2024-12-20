@@ -286,6 +286,41 @@ export const Hash = new HashType();
 export const Bool = new BoolType();
 export const Text = new StringType();
 
+export const stringToSchemaType = (type: string): SchemaType<any> | undefined => {
+  switch (type) {
+    case 'Char':
+      return Char
+    case 'U8':
+      return U8
+    case 'I8':
+      return I8
+    case 'U16':
+      return U16
+    case 'I16':
+      return I16
+    case 'U32':
+      return U32
+    case 'I32':
+      return I32
+    case 'U64':
+      return U64
+    case 'I64':
+      return I64
+    case 'F32':
+      return F32
+    case 'F64':
+      return F64
+    case 'Hash':
+      return Hash
+    case 'Bool':
+      return Bool
+    case 'Text':
+      return Text
+    default:
+      return undefined
+  }
+}
+
 type SchemaDefinition = Record<string, SchemaType<any>>;
 
 export type SchemaObject = {
