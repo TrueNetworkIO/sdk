@@ -171,13 +171,16 @@ class F32Type extends SchemaType<number> {
   sizeInBytes = 4;
   id = 9;
   isValid(v: number): boolean {
-    return !isNaN(v) && Math.fround(v) === v;
+    if (!Number.isFinite(v)) return false;
+    const min = -3.4028234663852886e+38;
+    const max = 3.4028234663852886e+38;
+    return v >= min && v <= max;
   }
   serialize(v: number): string {
     const buffer = new ArrayBuffer(4);
     const view = new DataView(buffer);
     view.setFloat32(0, v, true);
-    return Array.from(new Uint8Array(buffer))
+    return "0x" + Array.from(new Uint8Array(buffer))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
   }
@@ -216,7 +219,7 @@ class F64Type extends SchemaType<number> {
     const buffer = new ArrayBuffer(8);
     const view = new DataView(buffer);
     view.setFloat64(0, v, true);
-    return Array.from(new Uint8Array(buffer))
+    return "0x" + Array.from(new Uint8Array(buffer))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
   }

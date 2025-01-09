@@ -11,7 +11,7 @@ export const saveAlgo = async (api: ApiPromise, account: KeyringPair, schemaHash
 
   return await new Promise<number>((resolve, reject) => {
     api.tx[ALGORITHM_PALLET_NAME]
-      .saveAlgo(schemaHashes, code)
+      .saveAlgo(schemaHashes, code, null)
       .signAndSend(account, (result) => {
         let algorithmId: number = -1
         result.events.forEach(({ event: { method, data } }) => {

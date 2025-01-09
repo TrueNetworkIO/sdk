@@ -14,7 +14,7 @@ export const checkIfSchemaExist = async (api: ApiPromise, schemaHash: string): P
   return true;
 }
 
-export const getSchemaFromHash = async (api: ApiPromise, schemaHash: string): Promise<SchemaObject | undefined> => {
+export const getSchemaFromHash = async (api: ApiPromise, schemaHash: string): Promise<[string, any][] | undefined> => {
   const response = await api.query[CREDENTIALS_PALLET_NAME].schemas(schemaHash);
 
   const data = (response.toHuman() as any)
