@@ -1,7 +1,7 @@
 import { bytesToBlakeTwo256Hash, decodeBytesToNumber, numberToUint8Array, toLittleEndianHex } from "../utils/hashing";
 import { checkIfSchemaExist, getAttestationForSchema } from "../pallets/credentials/state";
-import { createAttestation, createAttestationTx, createSchema, createSchemaTx, updateAttestation } from "../pallets/credentials/extrinsic";
-import { TrueApi } from "..";
+import { AttestationResponseType, createAttestation, createAttestationTx, createSchema, createSchemaTx, updateAttestation } from "../pallets/credentials/extrinsic";
+import { prismUrl, TrueApi } from "..";
 
 type PrimitiveType = string | number | boolean | bigint;
 
@@ -446,7 +446,7 @@ export class Schema<T extends SchemaDefinition> {
     }
   }
 
-  public async attest(api: TrueApi, user: string, attestation: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }) {
+  public async attest(api: TrueApi, user: string, attestation: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }): Promise<AttestationResponseType> {
     this.validate(attestation);
 
     // Check if issuer hash exists in the api.
@@ -463,17 +463,40 @@ export class Schema<T extends SchemaDefinition> {
 
       const attestationTx = await createAttestationTx(api.network, api.account, api.issuerHash, this, user, values);
 
-      return new Promise<string | undefined>(async (resolve, _) => {
+      return new Promise<AttestationResponseType>(async (resolve, reject) => {
         await api.network.tx.utility.batch([schemaTx, attestationTx]).signAndSend(api.account, ({ status, events }) => {
           events.forEach(({ event: { method } }) => {
             if (method == 'ExtrinsicFailed') {
-              throw Error(`Transaction failed, error attesting on-chain for the users. \ntx: ${status.hash}`);
+              reject(Error(`Transaction failed, error attesting on-chain for the users. \ntx: ${status.hash}`));
             }
           });
 
+          let attestationId: number = -1
           if (status.isInBlock) {
             console.log(`Transaction is inBlock at blockHash ${status.asInBlock}`);
-            resolve(`${status.asInBlock}`);
+
+            events.forEach(({ event: { method, data } }: { event: any }) => {
+              if (method == 'AttestationCreated') {
+                console.log('Attestation Created: InBlock')
+                const jsonData = data.toJSON()
+                if (jsonData) {
+                  attestationId = jsonData[3]
+                }
+              }
+              if (method == 'ExtrinsicFailed') {
+                reject(Error(`Transaction failed, error attesting on-chain for the user. \ntx: ${status.hash}`));
+              }
+            });
+
+            resolve({
+              attestationId,
+              prismUrl: `${prismUrl}/query/${status.asInBlock.toString()}`,
+              transaction: {
+                hash: status.asInBlock.toString(),
+                explorerUrl: `https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Framan.truenetwork.io%2Fws#/explorer/query/${status.asInBlock.toString()}`,
+                events: events
+              }
+            })
 
           }
         });

@@ -6,12 +6,14 @@ import { checkAndConvertAddresses } from "./utils/address";
 
 import { runAlgo } from "./pallets/algorithms/extrinsic";
 import { getSchemaFromHash } from "./pallets/credentials/state";
+import { getIssuer } from "./pallets/issuer/state";
 
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
 keyring.setSS58Format(7);
 
 export class TrueApi {
+  private static instance: TrueApi;
   public network: ApiPromise;
   public account: KeyringPair;
 
@@ -31,9 +33,12 @@ export class TrueApi {
   }
 
   static async create(accountKey: string, nodeUrl?: NetworkConfig): Promise<TrueApi> {
-    const api = await connect(nodeUrl);
+    if (!this.instance || this.instance.account.address !== keyring.addFromUri(accountKey).address) {
+      const api = await connect(nodeUrl);
+      this.instance = new TrueApi(api, accountKey);
+    }
 
-    return new TrueApi(api, accountKey);
+    return this.instance;
   }
 
   public async setIssuer(hash: string) {
@@ -58,6 +63,10 @@ export class TrueApi {
 
   public async getSchemaFromHash(schemaHash: string) {
     return await getSchemaFromHash(this.network, schemaHash);
+  }
+
+  public async getIssuerFromHash(issuerHash: string) {
+    return await getIssuer(this.network, issuerHash);
   }
 
   // /**

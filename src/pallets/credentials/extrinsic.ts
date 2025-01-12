@@ -6,7 +6,7 @@ import { getIssuer } from "../issuer/state";
 import { Schema } from "../../schemas";
 import { prismUrl } from "../../network";
 
-type AttestationResponseType = {
+export type AttestationResponseType = {
   attestationId: number,
   prismUrl: string,
   transaction: {
@@ -145,10 +145,10 @@ export const createAttestation = async (api: ApiPromise, account: KeyringPair, i
 
           resolve({
             attestationId,
-            prismUrl: `${prismUrl}/query/${result.status.hash.toString()}`,
+            prismUrl: `${prismUrl}/query/${result.status.asInBlock.toString()}`,
             transaction: {
               hash: result.status.asInBlock.toString(),
-              explorerUrl: `https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Framan.truenetwork.io%2Fws#/explorer/query/${result.status.hash.toString()}`,
+              explorerUrl: `https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Framan.truenetwork.io%2Fws#/explorer/query/${result.status.asInBlock.toString()}`,
               events: result.events
             }
           })
