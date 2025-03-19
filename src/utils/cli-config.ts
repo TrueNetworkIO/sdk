@@ -1,5 +1,5 @@
-import { NetworkConfig } from "../network";
 import { Schema } from "../schemas";
+import { NetworkConfig } from "./types";
 
 export type Account = {
   secret: string;

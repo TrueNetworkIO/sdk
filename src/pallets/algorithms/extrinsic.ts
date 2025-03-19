@@ -2,6 +2,7 @@ import { ApiPromise } from "@polkadot/api";
 import { KeyringPair } from '@polkadot/keyring/types';
 
 import { ALGORITHM_PALLET_NAME } from "./state";
+import { prismUrl } from "../../network";
 
 export const saveAlgo = async (api: ApiPromise, account: KeyringPair, schemaHashes: string[], code: number[]): Promise<number> => {
 
@@ -22,12 +23,13 @@ export const saveAlgo = async (api: ApiPromise, account: KeyringPair, schemaHash
             }
           }
           if (method == 'ExtrinsicFailed') {
-            reject('Transaction failed, error registering the algorithm.');
+            reject('\nTransaction failed, error registering the algorithm.');
           }
         });
 
         if (result.status.isFinalized) {
-          console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
+          console.log(`\nTransaction finalized at blockHash ${result.status.asFinalized}`);
+          console.log('\nView on prism:', `${prismUrl}/query/${result.status.asFinalized}`)
           if (algorithmId == -1) throw Error(`Error registering the schema, tx: ${result.status.asFinalized}`)
           resolve(algorithmId);
         }
@@ -52,12 +54,12 @@ export const runAlgo = async (api: ApiPromise, issuerHash: string, account: Keyr
             }
           }
           if (method == 'ExtrinsicFailed') {
-            reject(`Transaction failed, error attesting on-chain for the user. \ntx: ${result.status.hash}`);
+            reject(`\nTransaction failed, error attesting on-chain for the user. \ntx: ${result.status.hash}`);
           }
         });
 
         if (result.status.isInBlock) {
-          console.log(`Transaction finalized at blockHash ${result.status.asInBlock}`);
+          console.log(`\nTransaction finalized at blockHash ${result.status.asInBlock}`);
           resolve(reputationScore)
         }
       });

@@ -1,9 +1,4 @@
-export type NetworkConfig = {
-  name: string,
-  unit: string,
-  rpc: string,
-  denomination: number
-}
+import { NetworkConfig } from "../utils"
 
 export const testnet: NetworkConfig = {
   name: 'raman network',

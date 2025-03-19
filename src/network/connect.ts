@@ -1,4 +1,5 @@
-import { NetworkConfig, testnet } from './config'
+import { NetworkConfig } from '../utils';
+import { testnet } from './config'
 import { ApiPromise, WsProvider } from '@polkadot/api';
 
 export const connect = async (network?: NetworkConfig): Promise<ApiPromise> => {

@@ -1,12 +1,13 @@
 import { ApiPromise, Keyring } from "@polkadot/api"
 import { KeyringPair } from '@polkadot/keyring/types'
-import { NetworkConfig, connect } from "./network";
+import { connect } from "./network";
 import { createIssuer } from "./pallets/issuer/extrinsic";
 import { checkAndConvertAddresses } from "./utils/address";
 
 import { runAlgo } from "./pallets/algorithms/extrinsic";
 import { getSchemaFromHash } from "./pallets/credentials/state";
 import { getIssuer } from "./pallets/issuer/state";
+import { NetworkConfig } from "./utils";
 
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });

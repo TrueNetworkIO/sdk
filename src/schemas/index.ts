@@ -1,11 +1,11 @@
-import { bytesToBlakeTwo256Hash, decodeBytesToNumber, numberToUint8Array, toLittleEndianHex } from "../utils/hashing";
+import { bytesToBlakeTwo256Hash, numberToUint8Array, toLittleEndianHex } from "../utils/hashing";
 import { checkIfSchemaExist, getAttestationForSchema } from "../pallets/credentials/state";
-import { AttestationResponseType, createAttestation, createAttestationTx, createSchema, createSchemaTx, updateAttestation } from "../pallets/credentials/extrinsic";
-import { prismUrl, TrueApi } from "..";
+import { createAttestation, createAttestationTx, createSchema, createSchemaTx, updateAttestation } from "../pallets/credentials/extrinsic";
+import { AttestationResponseType, prismUrl, TrueApi } from "..";
 
 type PrimitiveType = string | number | boolean | bigint;
 
-abstract class SchemaType<T extends PrimitiveType> {
+export abstract class SchemaType<T extends PrimitiveType> {
   abstract sizeInBytes: number;
   abstract id: number;
 
@@ -326,13 +326,11 @@ export const stringToSchemaType = (type: string): SchemaType<any> | undefined =>
 
 type SchemaDefinition = Record<string, SchemaType<any>>;
 
-export type SchemaObject = {
-  [key: string]: SchemaType<any>
-}
 
 export class Schema<T extends SchemaDefinition> {
-  private def: T;
-  private schemaHash: string;
+  private readonly def: T;
+  private readonly schemaHash: string;
+
 
   // Set a default value for the Schema Object.
   constructor(def: T) {
@@ -340,11 +338,13 @@ export class Schema<T extends SchemaDefinition> {
     this.schemaHash = this.getSchemaHash();
   }
 
+  public readonly type: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never } = {} as { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }
+
   static create<T extends SchemaDefinition>(def: T) {
     return new Schema(def);
   }
 
-  public async getAttestations(api: TrueApi, address: string): Promise<{ [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }[]> {
+  public async getAttestations(api: TrueApi, address: string): Promise<typeof this.type[]> {
     const data = await getAttestationForSchema(
       api.network, address,
       api.issuerHash!,
@@ -354,12 +354,12 @@ export class Schema<T extends SchemaDefinition> {
     if (!data) throw Error("Attestation doesn't not exist.")
 
     // Convert array data to structured schema object.
-    const response: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }[] = [];
+    const response: typeof this.type[] = [];
 
     const sortedEntries = Object.entries(this.def).sort((a, b) => b[0].localeCompare(a[0]));
 
     data.forEach((d: any, i: number) => {
-      let objs: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never } = {} as any;
+      let objs: typeof this.type = {} as any;
       sortedEntries.forEach((entry, index) => {
         const [key, schemaType] = entry;
         const value = d[index];
@@ -371,7 +371,7 @@ export class Schema<T extends SchemaDefinition> {
           throw new Error(`Unexpected data type for ${key}: ${typeof value}`);
         }
 
-        objs[key as keyof T] = schemaType.deserialize(stringValue) as any;
+        objs[key as keyof T] = schemaType.deserialize(stringValue);
       });
 
       response.push(objs)
@@ -380,7 +380,7 @@ export class Schema<T extends SchemaDefinition> {
     return response;
   }
 
-  private getSortedEntries(item: T | { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }) {
+  private getSortedEntries(item: T | typeof this.type) {
     return Object.entries(item).sort((a, b) => b[0].localeCompare(a[0]))
   }
 
@@ -427,7 +427,7 @@ export class Schema<T extends SchemaDefinition> {
     return checkIfSchemaExist(api.network, this.schemaHash);
   }
 
-  public async register(api: TrueApi) {
+  public async register(api: TrueApi): Promise<string> {
     if (!api.issuerHash) throw Error("Issuer Hash is not defined in TrueApi, either pass the hash in constructor or call api.registerIssuer(name: string).")
 
     if (await this.ifExistAlready(api)) {
@@ -438,7 +438,7 @@ export class Schema<T extends SchemaDefinition> {
     return await createSchema(api.network, api.account, api.issuerHash, this)
   }
 
-  private validate(data: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }): void {
+  private validate(data: typeof this.type): void {
     for (const [key, value] of Object.entries(data)) {
       if (!this.def[key].isValid(value)) {
         throw new Error(`Invalid value for ${key}: ${value}`);
@@ -446,7 +446,7 @@ export class Schema<T extends SchemaDefinition> {
     }
   }
 
-  public async attest(api: TrueApi, user: string, attestation: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }): Promise<AttestationResponseType> {
+  public async attest(api: TrueApi, user: string, attestation: typeof this.type): Promise<AttestationResponseType> {
     this.validate(attestation);
 
     // Check if issuer hash exists in the api.
@@ -473,7 +473,7 @@ export class Schema<T extends SchemaDefinition> {
 
           let attestationId: number = -1
           if (status.isInBlock) {
-            console.log(`Transaction is inBlock at blockHash ${status.asInBlock}`);
+            console.log(`\nTransaction is inBlock at blockHash ${status.asInBlock}`);
 
             events.forEach(({ event: { method, data } }: { event: any }) => {
               if (method == 'AttestationCreated') {
@@ -484,7 +484,7 @@ export class Schema<T extends SchemaDefinition> {
                 }
               }
               if (method == 'ExtrinsicFailed') {
-                reject(Error(`Transaction failed, error attesting on-chain for the user. \ntx: ${status.hash}`));
+                reject(Error(`\nTransaction failed, error attesting on-chain for the user. \ntx: ${status.hash}`));
               }
             });
 
@@ -506,7 +506,7 @@ export class Schema<T extends SchemaDefinition> {
     return await createAttestation(api.network, api.account, api.issuerHash, this, user, values);
   }
 
-  public async updateAttestation(api: TrueApi, user: string, attestationId: number, attestation: { [K in keyof T]: T[K] extends SchemaType<infer V> ? V : never }) {
+  public async updateAttestation(api: TrueApi, user: string, attestationId: number, attestation: typeof this.type): Promise<AttestationResponseType | undefined> {
     this.validate(attestation);
 
     // Check if issuer hash exists in the api.
@@ -523,18 +523,25 @@ export class Schema<T extends SchemaDefinition> {
 
       const attestationTx = await createAttestationTx(api.network, api.account, api.issuerHash, this, user, values);
 
-      return new Promise<string | undefined>(async (resolve, _) => {
+      return new Promise<AttestationResponseType | undefined>(async (resolve, _) => {
         await api.network.tx.utility.batch([schemaTx, attestationTx]).signAndSend(api.account, ({ status, events }) => {
           events.forEach(({ event: { method } }) => {
             if (method == 'ExtrinsicFailed') {
-              throw Error(`Transaction failed, error attesting on-chain for the users. \ntx: ${status.hash}`);
+              throw Error(`\nTransaction failed, error attesting on-chain for the users. \ntx: ${status.hash}`);
             }
           });
 
           if (status.isInBlock) {
-            console.log(`Transaction is inBlock at blockHash ${status.asInBlock}`);
-            resolve(`${status.asInBlock}`);
-
+            console.log(`\nTransaction is inBlock at blockHash ${status.asInBlock}`);
+            resolve({
+              attestationId,
+              prismUrl: `${prismUrl}/query/${status.asInBlock.toString()}`,
+              transaction: {
+                hash: status.asInBlock.toString(),
+                explorerUrl: `https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Framan.truenetwork.io%2Fws#/explorer/query/${status.asInBlock.toString()}`,
+                events: events
+              }
+            })
           }
         });
       });

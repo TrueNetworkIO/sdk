@@ -1,5 +1,5 @@
 import { ApiPromise } from "@polkadot/api"
-import { Schema, SchemaObject } from "../../schemas";
+import { Schema } from "../../schemas";
 import { getWalletWithType } from "../../utils";
 
 export const CREDENTIALS_PALLET_NAME = 'credentialsModule'
@@ -30,7 +30,7 @@ export const getAttestationForSchema = async (api: ApiPromise, account: string, 
 
   const response = await api.query[CREDENTIALS_PALLET_NAME].attestations(walletWithType, issuerHash, schema.getSchemaHash());
 
-  const data = (response.toJSON() as any)
+  const data = (response.toHuman() as any)
 
   if (!data || data.length == 0) return [];
 

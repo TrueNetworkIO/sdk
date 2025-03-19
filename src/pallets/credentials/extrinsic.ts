@@ -5,16 +5,7 @@ import { KeyringPair } from '@polkadot/keyring/types';
 import { getIssuer } from "../issuer/state";
 import { Schema } from "../../schemas";
 import { prismUrl } from "../../network";
-
-export type AttestationResponseType = {
-  attestationId: number,
-  prismUrl: string,
-  transaction: {
-    hash: string,
-    explorerUrl: string,
-    events: any[]
-  }
-}
+import { AttestationResponseType } from "../../utils";
 
 export const createSchemaTx = async (api: ApiPromise, account: KeyringPair, issuerHash: string, schema: Schema<any>) => {
   // Check if issuer exists or not.
@@ -61,12 +52,12 @@ export const createSchema = async (api: ApiPromise, account: KeyringPair, issuer
             }
           }
           if (method == 'ExtrinsicFailed') {
-            reject(Error('Transaction failed, error creating user.'));
+            reject(Error('\nTransaction failed, error creating user.'));
           }
         });
 
         if (result.status.isInBlock) {
-          console.log(`Transaction finalized at blockHash ${result.status.asInBlock}`);
+          console.log(`\nTransaction finalized at blockHash ${result.status.asInBlock}`);
           if (!schemaHash) throw Error(`Error registering the schema, tx: ${result.status.asInBlock}`)
           resolve(`${result.status.asInBlock}`);
         }
@@ -141,7 +132,7 @@ export const createAttestation = async (api: ApiPromise, account: KeyringPair, i
             }
           });
 
-          console.log(`Transaction finalized at blockHash ${result.status.asInBlock}`);
+          console.log(`\nTransaction finalized at blockHash ${result.status.asInBlock}`);
 
           resolve({
             attestationId,
@@ -205,7 +196,7 @@ export const updateAttestation = async (api: ApiPromise, account: KeyringPair, i
             }
           });
 
-          console.log(`Transaction finalized at blockHash ${result.status.asInBlock}`);
+          console.log(`\nTransaction finalized at blockHash ${result.status.asInBlock}`);
 
           resolve({
             attestationId,

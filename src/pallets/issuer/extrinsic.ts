@@ -21,12 +21,12 @@ export const createIssuer = async (api: ApiPromise, account: KeyringPair, name: 
       .signAndSend(account, (result) => {
         result.events.forEach(({ event: { method } }) => {
           if (method == 'ExtrinsicFailed') {
-            reject('Transaction failed, error creating user.');
+            reject('\nTransaction failed, error creating user.');
           }
         });
 
         if (result.status.isInBlock) {
-          console.log(`Transaction finalized at blockHash ${result.status.asInBlock}`);
+          console.log(`\nTransaction finalized at blockHash ${result.status.asInBlock}`);
           resolve(`0x${hash}`);
         }
       });
@@ -57,12 +57,12 @@ export const editIssuer = async (api: ApiPromise, account: KeyringPair, hashId: 
       .signAndSend(account, (result) => {
         result.events.forEach(({ event: { method } }) => {
           if (method == 'ExtrinsicFailed') {
-            reject('Transaction failed, error creating user.');
+            reject('\nTransaction failed, error creating user.');
           }
         });
 
         if (result.status.isInBlock) {
-          console.log(`Transaction finalized at blockHash ${result.status.asInBlock}`);
+          console.log(`\nTransaction finalized at blockHash ${result.status.asInBlock}`);
           resolve(`0x${newHash}`);
         }
       });
