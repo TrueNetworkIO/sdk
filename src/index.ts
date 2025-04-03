@@ -74,12 +74,16 @@ export class TrueApi {
 
   public async getBalance(address: string) {
     const account = toTrueNetworkAddress(address)
-  
+
     const freeBalance = await getFreeBalance(this.network, account)
-  
+
     const decimals = this.network.registry.chainDecimals
-  
-    return formatBalance(freeBalance.toString(), { withSiFull: true, withUnit: 'TRUE', decimals: decimals[0] }).toString()
+
+    return {
+      text: formatBalance(freeBalance.toString(), { withSiFull: true, withUnit: 'TRUE', decimals: decimals[0] }).toString(),
+      numeric: freeBalance,
+      decimals: decimals[0]
+    }
   }
 
   // /**

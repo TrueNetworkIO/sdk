@@ -159,7 +159,7 @@ export const updateAttestation = async (api: ApiPromise, account: KeyringPair, i
 
   // Check if the user is a controller.
   if (!issuer.controllers.includes(account.address)) {
-    throw Error("Cannot create attestation, account is not a controller.")
+    throw Error("Cannot update attestation, account is not a controller.")
   }
 
   return await new Promise<AttestationResponseType>((resolve, reject) => {
@@ -184,8 +184,8 @@ export const updateAttestation = async (api: ApiPromise, account: KeyringPair, i
         let attestationId: number = -1
         if (result.status.isInBlock) {
           result.events.forEach(({ event: { method, data } }: { event: any }) => {
-            if (method == 'AttestationCreated') {
-              console.log('Attestation Created: InBlock')
+            if (method == 'AttestationUpdated') {
+              console.log('Attestation Updated: InBlock')
               const jsonData = data.toJSON()
               if (jsonData) {
                 attestationId = jsonData[3]
