@@ -164,7 +164,7 @@ export const updateAttestation = async (api: ApiPromise, account: KeyringPair, i
 
   return await new Promise<AttestationResponseType>((resolve, reject) => {
     api.tx[CREDENTIALS_PALLET_NAME]
-      .attest(issuerHash, schema.getSchemaHash(), attestedTo, attestationId, newValues)
+      .updateAttestation(issuerHash, schema.getSchemaHash(), attestedTo, attestationId, newValues)
       .signAndSend(account, (result) => {
         if (result.dispatchError) {
           if (result.dispatchError.isModule) {

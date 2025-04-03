@@ -1,13 +1,15 @@
 import { ApiPromise, Keyring } from "@polkadot/api"
 import { KeyringPair } from '@polkadot/keyring/types'
+import { formatBalance } from '@polkadot/util';
+
 import { connect } from "./network";
 import { createIssuer } from "./pallets/issuer/extrinsic";
-import { checkAndConvertAddresses } from "./utils/address";
+import { checkAndConvertAddresses, toTrueNetworkAddress } from "./utils/address";
 
 import { runAlgo } from "./pallets/algorithms/extrinsic";
 import { getSchemaFromHash } from "./pallets/credentials/state";
 import { getIssuer } from "./pallets/issuer/state";
-import { NetworkConfig } from "./utils";
+import { getFreeBalance, NetworkConfig } from "./utils";
 
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
@@ -68,6 +70,16 @@ export class TrueApi {
 
   public async getIssuerFromHash(issuerHash: string) {
     return await getIssuer(this.network, issuerHash);
+  }
+
+  public async getBalance(address: string) {
+    const account = toTrueNetworkAddress(address)
+  
+    const freeBalance = await getFreeBalance(this.network, account)
+  
+    const decimals = this.network.registry.chainDecimals
+  
+    return formatBalance(freeBalance.toString(), { withSiFull: true, withUnit: 'TRUE', decimals: decimals[0] }).toString()
   }
 
   // /**
